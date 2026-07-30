@@ -2975,11 +2975,13 @@
       _toolbar.panel.classList.add('show');
       _toolbar.iframe.style.width = '360px';
       _toolbar.iframe.style.height = '560px';
+      _toolbar.iframe.style.borderRadius = '14px';
       renderPanel();
     } else {
       _toolbar.panel.classList.remove('show');
       _toolbar.iframe.style.width = '60px';
       _toolbar.iframe.style.height = '60px';
+      _toolbar.iframe.style.borderRadius = '30px';
     }
   }
 
@@ -3018,135 +3020,140 @@
     doc.addEventListener('touchend', onUp);
   }
 
-  // 创建悬浮工具条：用 iframe 方式（参考原版 createModalIframe，已验证可在 ST 沙箱工作）
-  // 但尺寸做成悬浮小窗，不是全屏。iframe 内部渲染 FAB + 面板。
+  // 创建悬浮工具条：1:1 照搬原版 Card_making_tool.js 的 createModalIframe 写法
+  // 原版已验证可在 ST 沙箱工作：创建 iframe → append 到 body → load 后写 contentDocument
+  // 不用 srcdoc（可能被 ST 沙箱阻止）
   function createToolbar() {
     if (_toolbar) {
-      // 已存在，直接展开
       try { setExpanded(true); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
       return;
     }
     try {
       if (!_cardData) initCardData();
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      if (!pDoc || !pDoc.body) {
+      var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      if (!parentDoc || !parentDoc.body) {
         console.error('[时之写卡器] parent.document 无 body');
         return;
       }
 
       // 移除旧实例
-      var old = pDoc.getElementById(SCRIPT_ID + '-toolbar');
+      var old = parentDoc.getElementById(SCRIPT_ID + '-toolbar');
       if (old) old.remove();
 
-      // 创建 iframe（参考原版 createModalIframe）
-      var iframe = pDoc.createElement('iframe');
+      // ===== 完全照搬原版 createModalIframe 的 iframe 创建方式 =====
+      var iframe = parentDoc.createElement('iframe');
       iframe.id = SCRIPT_ID + '-toolbar';
       iframe.setAttribute('script_id', SCRIPT_ID);
-      iframe.setAttribute('frameborder', '0');
-      iframe.setAttribute('allowtransparency', 'true');
-      // 悬浮小窗尺寸：折叠态 60x60，展开态 360x560，通过 JS 动态调整
-      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:60px;height:60px;border:none;z-index:999999;background:transparent;transition:width .25s ease,height .25s ease;';
-
-      // 用 srcdoc 初始化 iframe 内容
-      iframe.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><style>'
-        + '*{margin:0;padding:0;box-sizing:border-box}'
-        + 'html,body{width:100%;height:100%;overflow:hidden;background:transparent}'
-        + '.cm-fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s;position:relative}'
-        + '.cm-fab:hover{transform:scale(1.08)}'
-        + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
-        + '.cm-badge.zero{background:#6b7280}'
-        + '.cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
-        + '.cm-dot.off{background:#6b7280}'
-        + '.cm-panel{position:absolute;bottom:60px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;animation:cmPop .22s ease-out}'
-        + '.cm-panel.show{display:flex}'
-        + '@keyframes cmPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
-        + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
-        + '.cm-title-btns{display:flex;gap:6px}'
-        + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1}'
-        + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
-        + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
-        + '.cm-status .stat{display:flex;align-items:center;gap:4px;color:#8b949e}'
-        + '.cm-status .stat b{color:#e6edf3;font-weight:600}'
-        + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
-        + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
-        + '.cm-section{margin-bottom:10px}'
-        + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
-        + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
-        + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
-        + '.cm-field:last-child{border-bottom:none}'
-        + '.cm-field-name{color:#8b949e}'
-        + '.cm-field-status{color:#484f58}'
-        + '.cm-field-status.ok{color:#3fb950}'
-        + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
-        + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer;transition:all .15s}'
-        + '.cm-btn:hover{background:#30363d;border-color:#8b949e}'
-        + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
-        + '.cm-preset-group{margin-bottom:6px}'
-        + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
-        + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
-        + '.cm-preset-item:hover{background:#161b22}'
-        + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
-        + '.cm-preset-item .toggle.on{background:#3fb950}'
-        + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
-        + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
-        + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}'
-        + '</style></head><body>'
-        + '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
-        + '<div class="cm-panel" id="panel"></div>'
-        + '</body></html>';
+      // 悬浮小窗：初始 60x60（折叠态），展开态 360x560
+      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:60px;height:60px;border:none;z-index:99999;background:#0d1117;border-radius:30px;overflow:hidden;transition:width .25s ease,height .25s ease,border-radius .25s ease;';
 
       var loaded = false;
-      var onReady = function () {
+      var onLoad = function () {
         if (loaded) return;
         loaded = true;
-        var d = iframe.contentDocument || iframe.contentWindow.document;
-        var fab = d.getElementById('fab');
-        var badge = d.getElementById('badge');
-        var panel = d.getElementById('panel');
-        // dot 元素（同步状态指示）
-        var dot = d.createElement('span');
-        dot.className = 'cm-dot';
-        fab.appendChild(dot);
+        try {
+          var d = iframe.contentDocument || iframe.contentWindow.document;
+          // 写入样式（照搬原版方式：用 style 元素）
+          var s = d.createElement('style');
+          s.textContent = ''
+            + '*{margin:0;padding:0;box-sizing:border-box}'
+            + 'html,body{width:100%;height:100%;overflow:hidden;background:#0d1117}'
+            + '.cm-fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s;position:relative}'
+            + '.cm-fab:hover{transform:scale(1.08)}'
+            + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
+            + '.cm-badge.zero{background:#6b7280}'
+            + '.cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
+            + '.cm-dot.off{background:#6b7280}'
+            + '.cm-panel{position:absolute;bottom:60px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden}'
+            + '.cm-panel.show{display:flex}'
+            + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
+            + '.cm-title-btns{display:flex;gap:6px}'
+            + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1}'
+            + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
+            + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+            + '.cm-status .stat{display:flex;align-items:center;gap:4px;color:#8b949e}'
+            + '.cm-status .stat b{color:#e6edf3;font-weight:600}'
+            + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
+            + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
+            + '.cm-section{margin-bottom:10px}'
+            + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
+            + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
+            + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
+            + '.cm-field:last-child{border-bottom:none}'
+            + '.cm-field-name{color:#8b949e}'
+            + '.cm-field-status.ok{color:#3fb950}'
+            + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
+            + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer;transition:all .15s}'
+            + '.cm-btn:hover{background:#30363d;border-color:#8b949e}'
+            + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
+            + '.cm-preset-group{margin-bottom:6px}'
+            + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
+            + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
+            + '.cm-preset-item:hover{background:#161b22}'
+            + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
+            + '.cm-preset-item .toggle.on{background:#3fb950}'
+            + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
+            + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
+            + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}';
+          d.head.appendChild(s);
 
-        _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
+          // 写入 HTML 结构
+          d.body.innerHTML = ''
+            + '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
+            + '<div class="cm-panel" id="panel"></div>';
 
-        // FAB 点击切换展开/收起
-        fab.addEventListener('click', function () {
-          setExpanded(!_expanded);
-        });
+          var fab = d.getElementById('fab');
+          var badge = d.getElementById('badge');
+          var panel = d.getElementById('panel');
+          var dot = d.createElement('span');
+          dot.className = 'cm-dot';
+          fab.appendChild(dot);
 
-        console.log('[时之写卡器] ✅ iframe 工具条创建完成');
+          _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
 
-        // 以下非关键步骤，失败不影响工具条显示
-        try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable 失败:', e); }
-        try { updateBadge(); } catch(e) { console.warn('[时之写卡器] updateBadge 失败:', e); }
-        try { updateDot(); } catch(e) { console.warn('[时之写卡器] updateDot 失败:', e); }
+          // FAB 点击切换展开/收起
+          fab.addEventListener('click', function () {
+            setExpanded(!_expanded);
+          });
 
-        // 启动聊天监听
-        if (!_listenersRegistered) {
-          try {
-            registerChatListeners(function () { autoExtractFromChat(); });
-            _listenersRegistered = true;
-          } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
+          console.log('[时之写卡器] ✅ iframe 工具条创建完成');
+
+          // 非关键步骤
+          try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable:', e); }
+          try { updateBadge(); } catch(e) {}
+          try { updateDot(); } catch(e) {}
+
+          // 启动聊天监听
+          if (!_listenersRegistered) {
+            try {
+              registerChatListeners(function () { autoExtractFromChat(); });
+              _listenersRegistered = true;
+            } catch(e) {}
+          }
+          setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
+
+          // 默认展开
+          setExpanded(true);
+        } catch (e) {
+          console.error('[时之写卡器] onLoad 失败:', e);
         }
-        setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
-
-        // 默认展开
-        setExpanded(true);
       };
 
-      iframe.addEventListener('load', onReady, { once: true });
-      pDoc.body.appendChild(iframe);
+      iframe.addEventListener('load', onLoad);
+      parentDoc.body.appendChild(iframe);
       console.log('[时之写卡器] iframe 已挂载到 parent.document.body');
+
       // 兜底：1.5秒后如果 load 没触发，强制初始化
-      setTimeout(function () { if (!loaded) { console.warn('[时之写卡器] load 事件未触发，强制初始化'); try { onReady(); } catch(e) { console.error('[时之写卡器] 强制初始化失败:', e); } } }, 1500);
+      setTimeout(function () {
+        if (!loaded) {
+          console.warn('[时之写卡器] load 事件未触发，强制初始化');
+          try { onLoad(); } catch(e) { console.error('[时之写卡器] 强制初始化失败:', e); }
+        }
+      }, 1500);
     } catch (e) {
       console.error('[时之写卡器] ❌ createToolbar 整体失败:', e);
     }
   }
-
-  // renderPanel / wirePanelEvents / removeToolbar / setExpanded 已在上方定义
-  // （旧版函数操作 _toolbar.panel，现在 panel 指向 iframe 内的元素，完全兼容）
 
   // 从聊天消息中提取 ```json ... ``` 代码块
   function extractJsonBlocks(text) {
