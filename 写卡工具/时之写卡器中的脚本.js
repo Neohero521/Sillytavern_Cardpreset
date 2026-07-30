@@ -270,17 +270,17 @@
   // ---------- 仪表盘10模块定义（双行5列布局） ----------
   var DASH_MODULES = [
     // 第一行：核心5模块
-    { id: 'basic',     name: '基础字段', icon: '📋',  group: '核心',   desc: '名称、世界观、性格、场景' },
-    { id: 'core',      name: '核心铁则', icon: '🔒',  group: '核心',   desc: '系统指令、核心铁则、标签' },
-    { id: 'opening',   name: '开场白',   icon: '💬',  group: '核心',   desc: 'first_mes 开篇质量' },
-    { id: 'highval',   name: '高价值字段', icon: '💎', group: '核心',   desc: '对话示例、备用开局、引导' },
-    { id: 'worldbook', name: '世界书',   icon: '📚',  group: '核心',   desc: '世界观条目数量与质量' },
+    { id: 'basic',     name: '基础字段',   group: '核心',   desc: '名称、世界观、性格、场景' },
+    { id: 'core',      name: '核心铁则',   group: '核心',   desc: '系统指令、核心铁则、标签' },
+    { id: 'opening',   name: '开场白',     group: '核心',   desc: 'first_mes 开篇质量' },
+    { id: 'highval',   name: '高价值字段', group: '核心',   desc: '对话示例、备用开局、引导' },
+    { id: 'worldbook', name: '世界书',     group: '核心',   desc: '世界观条目数量与质量' },
     // 第二行：扩展5模块
-    { id: 'axiom',     name: '基础公理', icon: '🏛️',  group: '扩展',   desc: 'constant position=0 常驻' },
-    { id: 'scene',     name: '场景机制', icon: '🎮',  group: '扩展',   desc: '场景、玩法、世界规则' },
-    { id: 'entity',    name: '实体交互', icon: '👥',  group: '扩展',   desc: '角色、势力、物品、地点' },
-    { id: 'story',     name: '叙事背景', icon: '📖',  group: '扩展',   desc: '故事、文化、历史事件' },
-    { id: 'dynamic',   name: '动态适配', icon: '⚙️',  group: '扩展',   desc: '引导、互动、状态栏、正则' },
+    { id: 'axiom',     name: '基础公理',   group: '扩展',   desc: 'constant position=0 常驻' },
+    { id: 'scene',     name: '场景机制',   group: '扩展',   desc: '场景、玩法、世界规则' },
+    { id: 'entity',    name: '实体交互',   group: '扩展',   desc: '角色、势力、物品、地点' },
+    { id: 'story',     name: '叙事背景',   group: '扩展',   desc: '故事、文化、历史事件' },
+    { id: 'dynamic',   name: '动态适配',   group: '扩展',   desc: '引导、互动、状态栏、正则' },
   ];
 
   // ---------- 世界书前缀映射（用于统计模块） ----------
@@ -350,15 +350,16 @@
     var R = '#' + SCRIPT_ID;
     var css = ''
       // === 调色板：时之写卡器低饱和细线风 ===
-      + R + ' *, ' + R + ' *::before, ' + R + ' *::after{box-sizing:border-box;margin:0;padding:0}'
-      + R + '{--cm-bg:#fafafa;--cm-bg2:#ffffff;--cm-border:#e5e7eb;--cm-border-soft:#f1f5f9;'
-      + ' --cm-text:#111827;--cm-dim:#6b7280;--cm-dim2:#9ca3af;'
-      + ' --cm-accent:#2563eb;--cm-accent-soft:#eff6ff;--cm-accent-border:#bfdbfe;'
-      + ' --cm-green:#16a34a;--cm-green-soft:#f0fdf4;--cm-green-border:#bbf7d0;'
-      + ' --cm-warn:#d97706;--cm-warn-soft:#fffbeb;--cm-warn-border:#fde68a;'
-      + ' --cm-danger:#dc2626;--cm-danger-soft:#fef2f2;--cm-danger-border:#fecaca;'
-      + ' --cm-purple:#7c3aed;--cm-purple-soft:#f5f3ff;--cm-purple-border:#ddd6fe;'
-      + ' --cm-radius:10px;--cm-radius-lg:14px;}'
+      + R + ', ' + R + '-dash{--cm-bg:#f8fafc;--cm-bg2:#ffffff;--cm-border:#e2e8f0;--cm-border-soft:#f1f5f9;'
+      + ' --cm-text:#1e293b;--cm-dim:#64748b;--cm-dim2:#94a3b8;'
+      + ' --cm-accent:#3b82f6;--cm-accent-soft:#eff6ff;--cm-accent-border:#bfdbfe;'
+      + ' --cm-green:#22c55e;--cm-green-soft:#f0fdf4;--cm-green-border:#bbf7d0;'
+      + ' --cm-warn:#f59e0b;--cm-warn-soft:#fffbeb;--cm-warn-border:#fde68a;'
+      + ' --cm-danger:#ef4444;--cm-danger-soft:#fef2f2;--cm-danger-border:#fecaca;'
+      + ' --cm-purple:#8b5cf6;--cm-purple-soft:#f5f3ff;--cm-purple-border:#ddd6fe;'
+      + ' --cm-radius:8px;--cm-radius-lg:12px;}'
+      + R + ' *, ' + R + ' *::before, ' + R + ' *::after,'
+      + R + '-dash *, ' + R + '-dash *::before, ' + R + '-dash *::after{box-sizing:border-box;margin:0;padding:0}'
       // === 悬浮工具条（真·横条，圆角胶囊） ===
       + R + '{position:fixed;z-index:2147483647;display:flex;align-items:center;gap:6px;padding:6px 10px;'
       + ' background:var(--cm-bg2);border:1px solid var(--cm-border);border-radius:999px;'
@@ -383,15 +384,15 @@
       + R + ' .cm-completion b{color:var(--cm-accent);font-weight:600}'
       // === 仪表盘面板（从工具栏下拉展开，紧凑浮层） ===
       + R + '-dash{position:fixed;z-index:2147483646;display:none;flex-direction:column;'
-      + ' width:560px;max-width:calc(100vw - 24px);'
+      + ' width:520px;max-width:calc(100vw - 24px);'
       + ' background:var(--cm-bg2);border:1px solid var(--cm-border);border-radius:var(--cm-radius-lg);'
-      + ' box-shadow:0 8px 32px rgba(15,23,42,.12), 0 2px 8px rgba(15,23,42,.06);'
+      + ' box-shadow:0 12px 40px rgba(15,23,42,.15), 0 2px 8px rgba(15,23,42,.06);'
       + ' font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;'
       + ' color:var(--cm-text);font-size:13px;overflow:hidden;isolation:isolate}'
       + R + '-dash.show{display:flex;animation:cm-drop .18s ease-out}'
-      + '@keyframes cm-drop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
+      + '@keyframes cm-drop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
       // --- 仪表盘头部 ---
-      + R + '-dash .cm-dh{display:flex;align-items:center;gap:10px;padding:10px 14px;'
+      + R + '-dash .cm-dh{display:flex;align-items:center;gap:8px;padding:10px 14px;'
       + ' border-bottom:1px solid var(--cm-border);background:var(--cm-bg);cursor:move}'
       + R + '-dash .cm-dh strong{font-weight:600;color:var(--cm-text);font-size:13px}'
       + R + '-dash .cm-dh .cm-dsub{font-size:11px;color:var(--cm-dim);margin-left:4px}'
@@ -399,29 +400,29 @@
       + R + '-dash .cm-dclose{width:24px;height:24px;border:none;border-radius:6px;background:transparent;'
       + ' color:var(--cm-dim);font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}'
       + R + '-dash .cm-dclose:hover{background:var(--cm-danger-soft);color:var(--cm-danger)}'
-      + R + '-dash .cm-dash-tabs{display:flex;gap:4px;padding:8px 14px 0;border-bottom:1px solid var(--cm-border-soft);background:var(--cm-bg);flex-shrink:0}'
-      + R + '-dash .cm-dtab{padding:5px 12px;border:1px solid transparent;border-radius:8px 8px 0 0;'
-      + ' background:transparent;color:var(--cm-dim);cursor:pointer;font:inherit;font-size:11px;font-weight:500;margin-bottom:-1px}'
+      + R + '-dash .cm-dash-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid var(--cm-border);background:var(--cm-bg);flex-shrink:0}'
+      + R + '-dash .cm-dtab{padding:7px 12px;border:none;border-bottom:2px solid transparent;'
+      + ' background:transparent;color:var(--cm-dim);cursor:pointer;font:inherit;font-size:12px;font-weight:500;transition:color .15s,border-color .15s}'
       + R + '-dash .cm-dtab:hover{color:var(--cm-text)}'
-      + R + '-dash .cm-dtab.active{background:var(--cm-bg2);border-color:var(--cm-border);border-bottom-color:var(--cm-bg2);color:var(--cm-accent)}'
+      + R + '-dash .cm-dtab.active{color:var(--cm-accent);border-bottom-color:var(--cm-accent)}'
       // --- 仪表盘主体滚动区 ---
-      + R + '-dash .cm-dbody{flex:1;overflow-y:auto;padding:14px;background:var(--cm-bg2);max-height:480px}'
-      + R + '-dash .cm-dbody::-webkit-scrollbar{width:6px}'
+      + R + '-dash .cm-dbody{flex:1;overflow-y:auto;padding:12px 14px;background:var(--cm-bg2);max-height:440px}'
+      + R + '-dash .cm-dbody::-webkit-scrollbar{width:5px}'
       + R + '-dash .cm-dbody::-webkit-scrollbar-track{background:transparent}'
-      + R + '-dash .cm-dbody::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}'
+      + R + '-dash .cm-dbody::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}'
+      + R + '-dash .cm-dbody::-webkit-scrollbar-thumb:hover{background:#94a3b8}'
       // --- 10格环形进度网格：双行5列 ---
-      + R + '-dash .cm-ring-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}'
-      + R + '-dash .cm-ring-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;'
+      + R + '-dash .cm-ring-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}'
+      + R + '-dash .cm-ring-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;'
       + ' border:1px solid var(--cm-border-soft);border-radius:var(--cm-radius);background:var(--cm-bg2);'
       + ' cursor:pointer;transition:all .15s;position:relative}'
       + R + '-dash .cm-ring-card:hover{border-color:var(--cm-accent-border);background:var(--cm-accent-soft);transform:translateY(-1px)}'
-      + R + '-dash .cm-ring-card.active{border-color:var(--cm-accent);background:var(--cm-accent-soft);box-shadow:0 0 0 2px rgba(37,99,235,.1)}'
-      + R + '-dash .cm-ring-card .cm-rc-icon{font-size:15px;line-height:1}'
+      + R + '-dash .cm-ring-card.active{border-color:var(--cm-accent);background:var(--cm-accent-soft);box-shadow:0 0 0 2px rgba(59,130,246,.1)}'
       + R + '-dash .cm-ring-card .cm-rc-name{font-size:11px;color:var(--cm-text);font-weight:500;text-align:center;line-height:1.2}'
-      + R + '-dash .cm-ring-wrap{position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center}'
+      + R + '-dash .cm-ring-wrap{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center}'
       + R + '-dash .cm-ring-wrap svg{transform:rotate(-90deg)}'
-      + R + '-dash .cm-ring-wrap .cm-ring-bg{fill:none;stroke:var(--cm-border-soft);stroke-width:5}'
-      + R + '-dash .cm-ring-wrap .cm-ring-fg{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .4s ease}'
+      + R + '-dash .cm-ring-wrap .cm-ring-bg{fill:none;stroke:var(--cm-border-soft);stroke-width:4}'
+      + R + '-dash .cm-ring-wrap .cm-ring-fg{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .4s ease}'
       + R + '-dash .cm-ring-wrap.done .cm-ring-fg{stroke:var(--cm-green)}'
       + R + '-dash .cm-ring-wrap.partial .cm-ring-fg{stroke:var(--cm-accent)}'
       + R + '-dash .cm-ring-wrap.warn .cm-ring-fg{stroke:var(--cm-warn)}'
@@ -433,19 +434,18 @@
       + R + '-dash .cm-rc-badge.warn{background:var(--cm-warn)}'
       + R + '-dash .cm-rc-badge.empty{background:var(--cm-dim2)}'
       // --- 模块详情面板 ---
-      + R + '-dash .cm-mod-detail{background:var(--cm-bg);border:1px solid var(--cm-border-soft);border-radius:var(--cm-radius);padding:12px;margin-bottom:14px}'
-      + R + '-dash .cm-md-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--cm-border-soft)}'
-      + R + '-dash .cm-md-icon{font-size:18px}'
+      + R + '-dash .cm-mod-detail{background:var(--cm-bg);border:1px solid var(--cm-border-soft);border-radius:var(--cm-radius);padding:10px 12px}'
+      + R + '-dash .cm-md-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--cm-border-soft)}'
       + R + '-dash .cm-md-name{font-weight:600;color:var(--cm-text);font-size:13px}'
       + R + '-dash .cm-md-desc{font-size:11px;color:var(--cm-dim);margin-left:auto}'
-      + R + '-dash .cm-md-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}'
-      + R + '-dash .cm-md-stat{background:var(--cm-bg2);border:1px solid var(--cm-border-soft);border-radius:8px;padding:6px 8px;text-align:center}'
+      + R + '-dash .cm-md-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}'
+      + R + '-dash .cm-md-stat{background:var(--cm-bg2);border:1px solid var(--cm-border-soft);border-radius:6px;padding:5px 6px;text-align:center}'
       + R + '-dash .cm-md-stat b{display:block;font-size:13px;color:var(--cm-accent);font-weight:600}'
-      + R + '-dash .cm-md-stat span{display:block;font-size:10px;color:var(--cm-dim);margin-top:1px}'
+      + R + '-dash .cm-md-stat span{display:block;font-size:9px;color:var(--cm-dim);margin-top:1px}'
       + R + '-dash .cm-md-section{margin-bottom:8px}'
-      + R + '-dash .cm-md-section h4{font-size:11px;color:var(--cm-dim);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}'
-      + R + '-dash .cm-md-list{display:flex;flex-direction:column;gap:4px}'
-      + R + '-dash .cm-md-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--cm-bg2);'
+      + R + '-dash .cm-md-section h4{font-size:10px;color:var(--cm-dim);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}'
+      + R + '-dash .cm-md-list{display:flex;flex-direction:column;gap:3px}'
+      + R + '-dash .cm-md-item{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--cm-bg2);'
       + ' border:1px solid var(--cm-border-soft);border-radius:6px;font-size:11px}'
       + R + '-dash .cm-md-item .cm-mi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}'
       + R + '-dash .cm-md-item .cm-mi-dot.ok{background:var(--cm-green)}'
@@ -455,26 +455,30 @@
       + R + '-dash .cm-md-item .cm-mi-name{color:var(--cm-text);font-weight:500;flex-shrink:0}'
       + R + '-dash .cm-md-item .cm-mi-val{color:var(--cm-dim);margin-left:auto;font-size:10px}'
       + R + '-dash .cm-md-suggest{background:var(--cm-warn-soft);border:1px solid var(--cm-warn-border);'
-      + ' border-radius:8px;padding:8px 10px;font-size:11px;color:var(--cm-warn);line-height:1.5}'
+      + ' border-radius:6px;padding:6px 10px;font-size:11px;color:var(--cm-warn);line-height:1.5}'
       + R + '-dash .cm-md-ok{background:var(--cm-green-soft);border:1px solid var(--cm-green-border);'
-      + ' border-radius:8px;padding:8px 10px;font-size:11px;color:var(--cm-green);line-height:1.5}'
-      + R + '-dash .cm-md-preview{background:#0d1117;color:#e5e7eb;border-radius:6px;padding:8px 10px;font-size:10px;'
-      + ' font-family:"SF Mono",Consolas,monospace;white-space:pre-wrap;max-height:120px;overflow-y:auto;line-height:1.5}'
+      + ' border-radius:6px;padding:6px 10px;font-size:11px;color:var(--cm-green);line-height:1.5}'
+      + R + '-dash .cm-md-preview{background:#1e293b;color:#e2e8f0;border-radius:6px;padding:8px 10px;font-size:10px;'
+      + ' font-family:"SF Mono",Consolas,monospace;white-space:pre-wrap;max-height:100px;overflow-y:auto;line-height:1.5}'
       + R + '-dash .cm-md-preview::-webkit-scrollbar{width:4px}'
-      + R + '-dash .cm-md-preview::-webkit-scrollbar-thumb{background:#4b5563;border-radius:2px}'
+      + R + '-dash .cm-md-preview::-webkit-scrollbar-thumb{background:#475569;border-radius:2px}'
       // --- 质量检查面板 ---
-      + R + '-dash .cm-qc-item{background:var(--cm-bg2);border:1px solid var(--cm-border-soft);border-radius:8px;padding:10px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-start}'
+      + R + '-dash .cm-qc-item{background:var(--cm-bg2);border:1px solid var(--cm-border-soft);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start}'
       + R + '-dash .cm-qc-item.pass{border-color:var(--cm-green-border)}'
       + R + '-dash .cm-qc-item.fail{border-color:var(--cm-danger-border);background:var(--cm-danger-soft)}'
       + R + '-dash .cm-qc-item.warn{border-color:var(--cm-warn-border);background:var(--cm-warn-soft)}'
       + R + '-dash .cm-qc-icon{font-size:16px;flex-shrink:0;margin-top:1px}'
+      + R + '-dash .cm-qc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}'
+      + R + '-dash .cm-qc-dot.pass{background:var(--cm-green)}'
+      + R + '-dash .cm-qc-dot.warn{background:var(--cm-warn)}'
+      + R + '-dash .cm-qc-dot.fail{background:var(--cm-danger)}'
       + R + '-dash .cm-qc-content{flex:1;min-width:0}'
       + R + '-dash .cm-qc-title{font-size:12px;font-weight:600;color:var(--cm-text);margin-bottom:2px}'
       + R + '-dash .cm-qc-item.pass .cm-qc-title{color:var(--cm-green)}'
       + R + '-dash .cm-qc-item.fail .cm-qc-title{color:var(--cm-danger)}'
       + R + '-dash .cm-qc-item.warn .cm-qc-title{color:var(--cm-warn)}'
       + R + '-dash .cm-qc-desc{font-size:11px;color:var(--cm-dim);line-height:1.4}'
-      + R + '-dash .cm-qc-score{text-align:center;margin-bottom:14px;padding:14px;background:var(--cm-bg);'
+      + R + '-dash .cm-qc-score{text-align:center;margin-bottom:10px;padding:12px;background:var(--cm-bg);'
       + ' border:1px solid var(--cm-border-soft);border-radius:var(--cm-radius)}'
       + R + '-dash .cm-qc-score b{font-size:28px;font-weight:700;background:linear-gradient(135deg,var(--cm-accent),var(--cm-purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}'
       + R + '-dash .cm-qc-score span{display:block;font-size:11px;color:var(--cm-dim);margin-top:2px}'
@@ -521,9 +525,6 @@
       + R + '-dash .cm-tpl-preview{font-size:10px;color:var(--cm-dim2);font-family:"SF Mono",Consolas,monospace;background:var(--cm-bg);padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       + R + '-dash .cm-empty{text-align:center;padding:20px 10px;color:var(--cm-dim2);font-size:12px}'
       + R + '-dash .cm-empty .cm-eicon{font-size:28px;margin-bottom:6px;opacity:.4}'
-      // --- 底部动作条 ---
-      + R + '-dash .cm-dactions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-top:1px solid var(--cm-border);background:var(--cm-bg);flex-shrink:0}'
-      + R + '-dash .cm-dactions .spacer{flex:1}'
       // --- toast ---
       + R + '-toast{position:fixed;z-index:2147483648;left:50%;bottom:40px;transform:translateX(-50%);padding:8px 14px;background:#111827;color:#fff;'
       + ' border-radius:999px;font:inherit;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,.2);opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
@@ -851,47 +852,47 @@
       var v = getFieldValue(f.key);
       var ok = isFieldNonEmpty(f, v);
       add(ok, ok ? 'pass' : 'fail',
-        (ok ? '✅ ' : '❌ ') + f.label + ' 填写',
+        f.label + ' 填写',
         ok ? '已填写 (' + fieldLenText(f) + ')' : '该字段为必填项，请补充内容');
     });
     // 2. 字数规范
     var d = (getFieldValue('description') || '').trim().length;
     add(d >= 400, d >= 400 ? 'pass' : (d > 100 ? 'warn' : 'fail'),
-      '📐 世界观描述 ≥400字',
+      '世界观描述 ≥400字',
       '当前 ' + d + '字，' + (d >= 400 ? '符合建议长度' : (d > 100 ? '继续完善细节即可' : '过于简略，建议扩充')));
     var fm = (getFieldValue('first_mes') || '').trim().length;
     add(fm >= 500, fm >= 500 ? 'pass' : (fm > 150 ? 'warn' : 'fail'),
-      '📐 开场白 ≥500字',
+      '开场白 ≥500字',
       '当前 ' + fm + '字，' + (fm >= 500 ? '符合建议长度' : (fm > 150 ? '可进一步丰富场景描写和互动引导' : '内容不足，建议充实')));
     var sp = (getFieldValue('system_prompt') || '').trim().length;
     add(sp > 0 && sp <= 50, sp > 0 && sp <= 50 ? 'pass' : (sp > 0 ? 'warn' : 'fail'),
-      '📐 系统指令 ≤50字',
+      '系统指令 ≤50字',
       '当前 ' + sp + '字，' + (sp === 0 ? '未填写' : (sp <= 50 ? '精简恰当' : '过长，建议精简为纯身份定位')));
     var phi = (getFieldValue('post_history_instructions') || '').trim().length;
     add(phi > 0 && phi <= 100, phi > 0 && phi <= 100 ? 'pass' : (phi > 0 ? 'warn' : 'fail'),
-      '📐 核心铁则 ≤100字',
+      '核心铁则 ≤100字',
       '当前 ' + phi + '字，' + (phi === 0 ? '未填写（权重最高位，强烈建议填写）' : (phi <= 100 ? '合适' : '过长，建议精简')));
     // 3. 标签规范
     var tg = getFieldValue('tags') || [];
     add(tg.length >= 2 && tg.length <= 12, tg.length >= 2 ? 'pass' : 'fail',
-      '🏷️ 标签数量 2~12个',
+      '标签数量 2~12个',
       '当前 ' + tg.length + ' 个，' + (tg.length >= 2 && tg.length <= 12 ? '合理' : (tg.length < 2 ? '过少，建议补充便于检索的关键词' : '过多，精选核心标签即可')));
     // 4. 世界书
     var entries = (cardData.character_book && cardData.character_book.entries) || [];
     if (entries.length > 0) {
       var shortEntries = entries.filter(function(e) { return (e.content || '').trim().length < 100; });
       add(shortEntries.length === 0, shortEntries.length === 0 ? 'pass' : 'warn',
-        '📚 世界书条目充实度',
+        '世界书条目充实度',
         shortEntries.length === 0 ? entries.length + '条条目均≥100字' : shortEntries.length + '条条目<100字，建议补充');
       // 前缀规范
       var noPrefix = entries.filter(function(e) { return !/^[<\[【]/.test(e.comment || ''); });
       add(noPrefix.length === 0, noPrefix.length < entries.length * 0.5 ? 'pass' : 'warn',
-        '📚 条目前缀模板规范',
+        '条目前缀模板规范',
         noPrefix.length === 0 ? '全部使用<前缀>模板命名' : noPrefix.length + '条未加前缀（如<基础公理>/<角色名>），智能匹配精度下降');
       // 触发词覆盖率
       var entriesWithKeys = entries.filter(function(e) { return Array.isArray(e.keys) && e.keys.length > 0; }).length;
       add(entriesWithKeys >= entries.length * 0.5, entriesWithKeys >= entries.length * 0.5 ? 'pass' : (entriesWithKeys > 0 ? 'warn' : 'fail'),
-        '🔑 触发词覆盖率 ≥50%',
+        '触发词覆盖率 ≥50%',
         entriesWithKeys + '/' + entries.length + ' 条有触发词' + (entriesWithKeys < entries.length * 0.5 ? '，建议为更多条目设置精准keys' : '，覆盖良好'));
       // 触发词精准度（避免泛用词）
       var fuzzyWords = ['的','是','了','在','和','有','我','你','他','她','它','这','那','不','也','就','都','而','及','与','或','一个','什么','怎么','为'];
@@ -904,7 +905,7 @@
         }
       });
       add(riskyEntries === 0, riskyEntries === 0 ? 'pass' : 'warn',
-        '🔑 触发词精准度',
+        '触发词精准度',
         riskyEntries === 0 ? '未发现泛用触发词' : riskyEntries + '条使用了"的/是/了"等泛用词，改用领域专属词汇');
       // content自包含性（禁止上下文依赖词）
       var ctxDependentWords = ['如上所述','见上文','前文提到','如前所述','参见上文','上文中','以上所述','前面提到'];
@@ -916,7 +917,7 @@
         return false;
       }).length;
       add(ctxBadEntries === 0, ctxBadEntries === 0 ? 'pass' : 'warn',
-        '📦 条目自包含性（无上下文依赖）',
+        '条目自包含性（无上下文依赖）',
         ctxBadEntries === 0 ? '所有条目内容完整独立' : ctxBadEntries + '条含"如上所述/见上文"等词，需改为完整自描述');
       // 递归安全：实体交互类条目应有 prevent_recursion
       var entityPrefix = ['实体交互','重要角色','势力与组织','物品','地点场景'];
@@ -932,7 +933,7 @@
         if (e.prevent_recursion !== true && ext.prevent_recursion !== true) unsafeEntityCount++;
       });
       add(unsafeEntityCount === 0, unsafeEntityCount === 0 ? 'pass' : 'warn',
-        '🛡️ 递归安全：实体类 prevent_recursion',
+        '递归安全：实体类 prevent_recursion',
         unsafeEntityCount === 0 ? '实体类条目已防递归' : unsafeEntityCount + '条实体类未开启，链式触发可能导致Token爆炸');
       // 冷却防抖：场景类条目应有 cooldown
       var scenePrefix = ['场景机制','核心玩法','世界规则'];
@@ -949,7 +950,7 @@
         if (cd == null || cd < 1) noCooldownSceneCount++;
       });
       add(noCooldownSceneCount === 0, noCooldownSceneCount === 0 ? 'pass' : 'warn',
-        '⏱️ 冷却防抖：场景类 cooldown≥3',
+        '冷却防抖：场景类 cooldown≥3',
         noCooldownSceneCount === 0 ? '场景类条目已设冷却' : noCooldownSceneCount + '条场景类无cooldown，触发后可能连续刷屏');
       // position合理性：constant应为position≤1
       var badConstPos = 0;
@@ -960,7 +961,7 @@
         if (pos != null && pos > 1) badConstPos++;
       });
       add(badConstPos === 0, badConstPos === 0 ? 'pass' : 'warn',
-        '📍 position配置：constant条目≤1',
+        'position配置：constant条目≤1',
         badConstPos === 0 ? 'position配置合理' : badConstPos + '条constant条目position>1，常驻条目应放在0或1位');
       // MVU核心条目完整性
       var mvuInit = entries.filter(function(e) { return /\[InitVar\]|初始变量/.test(e.comment || ''); }).length;
@@ -973,14 +974,14 @@
         if (mvuVarList === 0) mvuMissing.push('变量列表');
         if (mvuUpdate === 0) mvuMissing.push('变量更新规则');
         add(mvuMissing.length === 0, mvuMissing.length === 0 ? 'pass' : 'warn',
-          '🔧 MVU核心条目完整',
+          'MVU核心条目完整',
           mvuMissing.length === 0 ? 'MVU四件套已齐备' : '缺少：' + mvuMissing.join('、') + '（启用了变量系统时必备）');
         // [InitVar]条目必须enabled=false
         var enabledInitVar = entries.filter(function(e) {
           return /\[InitVar\]|初始变量/.test(e.comment || '') && e.enabled !== false;
         }).length;
         add(enabledInitVar === 0, enabledInitVar === 0 ? 'pass' : 'fail',
-          '🔧 [InitVar]条目必须禁用',
+          '[InitVar]条目必须禁用',
           enabledInitVar === 0 ? '正确（MVU仅读取禁用的InitVar条目进行初始化）' : enabledInitVar + '条[InitVar]已启用，请改为disabled=false');
         // 变量列表应含format宏
         var varListWithoutMacro = entries.filter(function(e) {
@@ -988,7 +989,7 @@
           return (e.content || '').indexOf('format_message_variable::stat_data') < 0;
         }).length;
         add(varListWithoutMacro === 0, varListWithoutMacro === 0 ? 'pass' : 'fail',
-          '🔧 变量列表含format_message_variable宏',
+          '变量列表含format_message_variable宏',
           varListWithoutMacro === 0 ? '正确' : varListWithoutMacro + '条变量列表缺少{{format_message_variable::stat_data}}宏，LLM无法读取当前变量');
       }
       // 世界书条目重复检测（按comment精确匹配）
@@ -1001,7 +1002,7 @@
       var dupNames = [];
       for (var dk in dupMap) { if (dupMap[dk] > 1) dupNames.push(dk + '×' + dupMap[dk]); }
       add(dupNames.length === 0, dupNames.length === 0 ? 'pass' : 'warn',
-        '🗂️ 世界书条目无重复命名',
+        '世界书条目无重复命名',
         dupNames.length === 0 ? '条目命名唯一' : '发现重复：' + dupNames.slice(0, 3).join('、') + (dupNames.length > 3 ? ' 等' : ''));
     }
     // 5. 高价值字段
@@ -1010,7 +1011,7 @@
     if ((getFieldValue('alternate_greetings') || []).length >= 2) hvCount++;
     if ((getFieldValue('depth_prompt') || '').length > 20) hvCount++;
     add(hvCount >= 1, hvCount >= 2 ? 'pass' : (hvCount === 1 ? 'warn' : 'fail'),
-      '💎 高价值字段覆盖',
+      '高价值字段覆盖',
       '已启用 ' + hvCount + '/3 项：对话示例/备用开局/新手引导' + (hvCount < 2 ? '（建议≥2项）' : ''));
     return { items: r, pct: overall ? Math.round(100 * passed / overall) : 0 };
   }
@@ -1067,7 +1068,7 @@
   function buildOptimizeChecklist() {
     var qc = runQualityChecks();
     var failed = qc.items.filter(function(x) { return !x.pass; });
-    if (failed.length === 0) return '✅ 当前所有质量检查项均已达标！无需优化。';
+    if (failed.length === 0) return '当前所有质量检查项均已达标，无需优化。';
     // 指令映射（问题→影响→修复）
     var instrMap = {
       '名称': '设置一个简洁有力的世界名称，不超过15字',
@@ -1098,7 +1099,7 @@
     lines.push('## 待优化项详情（问题→修复建议）');
     lines.push('');
     failed.forEach(function(it, idx) {
-      lines.push('### ' + (idx + 1) + '. ' + it.title.replace(/^[✅❌⚠️]+/, '').trim());
+      lines.push('### ' + (idx + 1) + '. ' + it.title.replace(/^[✅❌⚠️📐🏷️📚🔑📦🛡️⏱️📍🔧🗂️💎 ]+/, '').trim());
       lines.push('- **当前状态**：' + it.desc);
       // 匹配关键词找修复建议
       var fixAdvice = '请根据当前状态手动修复，或提供更详细的要求';
@@ -1143,12 +1144,12 @@
     tb.id = SCRIPT_ID;
     tb.innerHTML = ''
       + '<span class="cm-handle" title="拖动移动">⋮⋮</span>'
-      + '<button class="cm-btn primary" data-act="toggle-dash">📊 仪表盘</button>'
+      + '<button class="cm-btn primary" data-act="toggle-dash">仪表盘</button>'
       + '<span class="cm-sep"></span>'
-      + '<button class="cm-btn" data-act="write" title="重新扫描本地数据并刷新仪表盘">↻ 刷新</button>'
-      + '<button class="cm-btn" data-act="scan"  title="扫描最近聊天，把```json```写进面板">🔍 扫消息</button>'
-      + '<button class="cm-btn" data-act="import" title="导入角色卡JSON">📤 导入</button>'
-      + '<button class="cm-btn success" data-act="export" title="导出 chara_card_v3.json（下载）">⬇ 导出</button>'
+      + '<button class="cm-btn" data-act="write" title="重新扫描本地数据并刷新仪表盘">刷新</button>'
+      + '<button class="cm-btn" data-act="scan"  title="扫描最近聊天，把```json```写进面板">扫消息</button>'
+      + '<button class="cm-btn" data-act="import" title="导入角色卡JSON">导入</button>'
+      + '<button class="cm-btn success" data-act="export" title="导出 chara_card_v3.json（下载）">导出</button>'
       + '<span class="cm-sep"></span>'
       + '<span class="cm-completion">完成度 <b data-cmp>0%</b></span>';
     doc.body.appendChild(tb);
@@ -1157,27 +1158,20 @@
     dash.id = SCRIPT_ID + '-dash';
     dash.innerHTML = ''
       + '<div class="cm-dh" id="cm-dhead">'
-      + '  <strong>📊 时之写卡器 · 仪表盘</strong>'
-      + '  <span class="cm-dsub">10模块双列进度 · 点击查看详情</span>'
+      + '  <strong>时之写卡器</strong>'
+      + '  <span class="cm-dsub">10模块进度 · 点击查看详情</span>'
       + '  <div class="cm-dright">'
       + '    <span class="cm-completion">完成度 <b data-cmp2>0%</b></span>'
       + '    <button class="cm-dclose" data-act="close-dash" title="收起">×</button>'
       + '  </div>'
       + '</div>'
       + '<div class="cm-dash-tabs" id="cm-dtabs">'
-      + '  <button class="cm-dtab active" data-view="dashboard">🎯 进度仪表盘</button>'
-      + '  <button class="cm-dtab" data-view="qc">✅ 质量检查</button>'
-      + '  <button class="cm-dtab" data-view="worldbook">📚 世界书概览</button>'
-      + '  <button class="cm-dtab" data-view="tools">🛠 快捷工具</button>'
+      + '  <button class="cm-dtab active" data-view="dashboard">进度仪表盘</button>'
+      + '  <button class="cm-dtab" data-view="qc">质量检查</button>'
+      + '  <button class="cm-dtab" data-view="worldbook">世界书概览</button>'
+      + '  <button class="cm-dtab" data-view="tools">快捷工具</button>'
       + '</div>'
-      + '<div class="cm-dbody" id="cm-dbody"></div>'
-      + '<div class="cm-dactions">'
-      + '  <button class="cm-btn" data-act="scan">🔍 扫聊天消息</button>'
-      + '  <button class="cm-btn danger" data-act="clear">🗑 清空</button>'
-      + '  <div class="spacer"></div>'
-      + '  <button class="cm-btn" data-act="import">📤 导入JSON</button>'
-      + '  <button class="cm-btn success" data-act="export">⬇ 导出角色卡</button>'
-      + '</div>';
+      + '<div class="cm-dbody" id="cm-dbody"></div>';
     doc.body.appendChild(dash);
 
     var fi = doc.createElement('input');
@@ -1254,9 +1248,8 @@
       var active = (state.activeModule === m.id) ? 'active' : '';
       html += '<div class="cm-ring-card ' + active + '" data-mod="' + m.id + '" title="' + esc(m.desc) + '">'
         + '<span class="cm-rc-badge ' + badgeCls + '"></span>'
-        + '<span class="cm-rc-icon">' + m.icon + '</span>'
         + '<div class="cm-ring-wrap ' + ringCls + '">'
-        + ringSvg(pct, 48)
+        + ringSvg(pct, 44)
         + '<span class="cm-ring-pct">' + pct + '%</span>'
         + '</div>'
         + '<span class="cm-rc-name">' + m.name + '</span>'
@@ -1270,7 +1263,7 @@
     var pct = calcModulePct(modId);
     var sug = getModuleSuggestions(modId, pct);
     html += '<div class="cm-mod-detail">';
-    html += '<div class="cm-md-head"><span class="cm-md-icon">' + mod.icon + '</span>'
+    html += '<div class="cm-md-head">'
       + '<span class="cm-md-name">' + mod.name + '</span>'
       + '<span class="cm-md-desc">' + mod.desc + '</span></div>';
     // 统计4格
@@ -1298,7 +1291,7 @@
       + '</div>';
     // 字段列表
     if (mFields.length > 0) {
-      html += '<div class="cm-md-section"><h4>📋 字段状态</h4><div class="cm-md-list">';
+      html += '<div class="cm-md-section"><h4>字段状态</h4><div class="cm-md-list">';
       mFields.forEach(function(f) {
         var val = getFieldValue(f.key);
         var l = 0, isArr = Array.isArray(val);
@@ -1323,7 +1316,7 @@
     }
     // 条目预览
     if (mEntries.length > 0) {
-      html += '<div class="cm-md-section"><h4>📝 条目预览（最近3条）</h4><div class="cm-md-list">';
+      html += '<div class="cm-md-section"><h4>条目预览（最近3条）</h4><div class="cm-md-list">';
       mEntries.slice(-3).reverse().forEach(function(e) {
         var cl = (e.content || '').trim().length;
         var dot = cl >= 250 ? 'ok' : (cl >= 100 ? 'part' : (cl > 0 ? 'bad' : 'empty'));
@@ -1338,16 +1331,16 @@
       // 内容预览
       var last = mEntries[mEntries.length - 1];
       if (last && last.content) {
-        html += '<div class="cm-md-section"><h4>👁️ 最新条目内容</h4>'
+        html += '<div class="cm-md-section"><h4>最新条目内容</h4>'
           + '<div class="cm-md-preview">' + esc(last.content.slice(0, 400) + (last.content.length > 400 ? '...' : '')) + '</div>'
           + '</div>';
       }
     }
     // 建议
     if (sug && sug.length > 0) {
-      html += '<div class="cm-md-suggest"><b style="color:#92400e">💡 改进建议：</b><br>• ' + sug.join('<br>• ') + '</div>';
+      html += '<div class="cm-md-suggest"><b>改进建议</b><br>• ' + sug.join('<br>• ') + '</div>';
     } else if (pct >= 90) {
-      html += '<div class="cm-md-ok"><b>✅ 模块状态优秀！</b> 所有核心项均已达标，质量良好。</div>';
+      html += '<div class="cm-md-ok"><b>模块状态优秀</b> 所有核心项均已达标</div>';
     }
     html += '</div>';
 
@@ -1371,7 +1364,7 @@
     var html = '<div class="cm-qc-score"><b>' + qc.pct + '</b><span>整体质量评分 / 100（' + qc.items.filter(function(x){return x.pass}).length + '/' + qc.items.length + ' 通过）</span></div>';
     qc.items.forEach(function(it) {
       html += '<div class="cm-qc-item ' + it.level + '">'
-        + '<span class="cm-qc-icon">' + (it.level === 'pass' ? '✅' : (it.level === 'warn' ? '⚠️' : '❌')) + '</span>'
+        + '<span class="cm-qc-dot ' + it.level + '"></span>'
         + '<div class="cm-qc-content">'
         + '<div class="cm-qc-title">' + it.title + '</div>'
         + '<div class="cm-qc-desc">' + it.desc + '</div>'
@@ -1387,7 +1380,7 @@
     var entries = (cardData.character_book && cardData.character_book.entries) || [];
     var eStats = classifyEntries();
     if (entries.length === 0) {
-      body.innerHTML = '<div class="cm-empty"><div class="cm-eicon">📚</div>暂无世界书条目<br>开始创作后，这里会显示条目分组与详情</div>';
+      body.innerHTML = '<div class="cm-empty">暂无世界书条目<br>开始创作后，这里会显示条目分组与详情</div>';
       return;
     }
     var totalChars = 0; entries.forEach(function(e){ totalChars += (e.content||'').length; });
@@ -1417,9 +1410,9 @@
 
     // 健康指标（触发词覆盖率 + 配置完整度）
     html += '<div class="cm-md-stats" style="margin-bottom:12px">'
-      + '<div class="cm-md-stat"><b style="color:' + (keyRate >= 50 ? 'var(--cm-green)' : (keyRate >= 20 ? 'var(--cm-warn)' : 'var(--cm-danger)')) + '">' + keyRate + '%</b><span>🔑 触发词覆盖率</span></div>'
+      + '<div class="cm-md-stat"><b style="color:' + (keyRate >= 50 ? 'var(--cm-green)' : (keyRate >= 20 ? 'var(--cm-warn)' : 'var(--cm-danger)')) + '">' + keyRate + '%</b><span>触发词覆盖率</span></div>'
       + '<div class="cm-md-stat"><b>' + withKeys + '</b><span>有keys条目</span></div>'
-      + '<div class="cm-md-stat"><b style="color:' + (cfgRate >= 60 ? 'var(--cm-green)' : (cfgRate >= 30 ? 'var(--cm-warn)' : 'var(--cm-danger)')) + '">' + cfgRate + '%</b><span>⚙️ 配置完整度</span></div>'
+      + '<div class="cm-md-stat"><b style="color:' + (cfgRate >= 60 ? 'var(--cm-green)' : (cfgRate >= 30 ? 'var(--cm-warn)' : 'var(--cm-danger)')) + '">' + cfgRate + '%</b><span>配置完整度</span></div>'
       + '<div class="cm-md-stat"><b>' + wellConfigured + '</b><span>配置齐全条目</span></div>'
       + '</div>';
 
@@ -1520,26 +1513,26 @@
 
     // ===== 快速工具条（一键操作）=====
     html += '<div class="cm-mod-detail">'
-      + '<div class="cm-md-head"><span class="cm-md-icon">⚡</span>'
+      + '<div class="cm-md-head">'
       + '<span class="cm-md-name">快速工具条</span>'
       + '<span class="cm-md-desc">一键执行常用操作</span></div>'
       + '<div class="cm-md-section">'
       + '<div style="display:flex;flex-wrap:wrap;gap:6px">';
     var quickBtns = [
-      { id: 'copyJson',    icon: '📋', name: '复制完整JSON',    desc: '复制chara_card_v3格式到剪贴板', cls: '' },
-      { id: 'copyOpt',     icon: '🔧', name: '生成优化清单',    desc: '一键生成AI可用的优化建议清单', cls: '' },
-      { id: 'dedup',       icon: '🗂️', name: '条目去重',       desc: '合并重复命名的世界书条目', cls: '' },
-      { id: 'fixCfg',      icon: '🔧', name: '修正条目配置',   desc: '按前缀补全缺失的position/depth等配置', cls: '' },
+      { id: 'copyJson',    icon: '', name: '复制完整JSON',    desc: '复制chara_card_v3格式到剪贴板', cls: '' },
+      { id: 'copyOpt',     icon: '', name: '生成优化清单',    desc: '一键生成AI可用的优化建议清单', cls: '' },
+      { id: 'dedup',       icon: '', name: '条目去重',       desc: '合并重复命名的世界书条目', cls: '' },
+      { id: 'fixCfg',      icon: '', name: '修正条目配置',   desc: '按前缀补全缺失的position/depth等配置', cls: '' },
     ];
     quickBtns.forEach(function(b) {
       html += '<button class="cm-btn ' + b.cls + '" style="padding:6px 10px" data-quick="' + b.id + '" title="' + esc(b.desc) + '">'
-        + b.icon + ' ' + b.name + '</button>';
+        + b.name + '</button>';
     });
     html += '</div></div></div>';
 
     // Token概览
     html += '<div class="cm-mod-detail">'
-      + '<div class="cm-md-head"><span class="cm-md-icon">📊</span>'
+      + '<div class="cm-md-head">'
       + '<span class="cm-md-name">Token 全景概览</span>'
       + '<span class="cm-md-desc">估算发送给模型的Token预算（中文=1字≈1tok）</span></div>'
       + '<div class="cm-md-stats">'
@@ -1548,7 +1541,7 @@
       + '<div class="cm-md-stat"><b>' + (totalTok - constTok) + '</b><span>动态部分</span></div>'
       + '<div class="cm-md-stat"><b>' + entries.length + '</b><span>世界书条目</span></div>'
       + '</div>'
-      + '<div class="cm-md-section"><h4>📐 各字段 Token 明细</h4><div class="cm-md-list">';
+      + '<div class="cm-md-section"><h4>各字段 Token 明细</h4><div class="cm-md-list">';
     var fieldRows = [
       { name: '世界观描述', val: desc, min: 400, tok: countTokens(desc) },
       { name: '开场白',     val: first, min: 500, tok: countTokens(first) },
@@ -1574,9 +1567,9 @@
         + '</div>';
     });
     if (constTok > 550) {
-      html += '</div></div><div class="cm-md-suggest"><b style="color:#92400e">⚠️ 常驻Token预算超标！</b>当前常驻 ' + constTok + ' tok（建议≤500），超出部分可能会被截断或挤占上下文。<br>建议精简：核心铁则(PHI)、基础公理、常驻条目。</div>';
+      html += '</div></div><div class="cm-md-suggest"><b style="color:#92400e">常驻Token预算超标</b>当前常驻 ' + constTok + ' tok（建议≤500），超出部分可能会被截断或挤占上下文。<br>建议精简：核心铁则(PHI)、基础公理、常驻条目。</div>';
     } else if (constTok > 0 && constTok <= 500) {
-      html += '</div></div><div class="cm-md-ok"><b>✅ 常驻预算健康！</b> 常驻 ' + constTok + ' tok 控制在建议范围内（≤500）。</div>';
+      html += '</div></div><div class="cm-md-ok"><b>常驻预算健康</b> 常驻 ' + constTok + ' tok 控制在建议范围内（≤500）。</div>';
     } else {
       html += '</div></div>';
     }
@@ -1584,10 +1577,10 @@
 
     // 一键条目模板生成
     html += '<div class="cm-mod-detail">'
-      + '<div class="cm-md-head"><span class="cm-md-icon">📝</span>'
+      + '<div class="cm-md-head">'
       + '<span class="cm-md-name">一键生成世界书条目骨架</span>'
       + '<span class="cm-md-desc">点击直接带默认参数插入到角色卡数据</span></div>'
-      + '<div class="cm-md-section"><h4>🧱 常用模板（点击即插入）</h4>'
+      + '<div class="cm-md-section"><h4>常用模板（点击即插入）</h4>'
       + '<div class="cm-template-grid">';
     QUICK_ENTRY_TEMPLATES.forEach(function(tpl, i) {
       html += '<div class="cm-tpl-card" data-tplidx="' + i + '">'
@@ -1601,10 +1594,10 @@
 
     // MVU模板一键复制
     html += '<div class="cm-mod-detail">'
-      + '<div class="cm-md-head"><span class="cm-md-icon">🎨</span>'
+      + '<div class="cm-md-head">'
       + '<span class="cm-md-name">MVU 状态栏 & 正则模板</span>'
       + '<span class="cm-md-desc">配置状态栏美化、变量更新显示</span></div>'
-      + '<div class="cm-md-section"><h4>📋 点击复制模板</h4><div class="cm-md-list">';
+      + '<div class="cm-md-section"><h4>点击复制模板</h4><div class="cm-md-list">';
     Object.keys(MVU_TEMPLATES).forEach(function(k) {
       var tpl = MVU_TEMPLATES[k];
       html += '<div class="cm-md-item" style="cursor:pointer" data-copytpl="' + k + '">'
@@ -1613,13 +1606,13 @@
         + '<div class="cm-mi-name" style="display:block">' + tpl.name + '</div>'
         + '<div style="font-size:10px;color:var(--cm-dim2);margin-top:2px;line-height:1.4">' + tpl.desc + '</div>'
         + '</div>'
-        + '<span class="cm-mi-val">📋 复制</span>'
+        + '<span class="cm-mi-val">复制</span>'
         + '</div>';
     });
     html += '</div></div>';
 
     // 快捷小贴士
-    html += '<div class="cm-md-section"><h4>💡 小贴士</h4>'
+    html += '<div class="cm-md-section"><h4>小贴士</h4>'
       + '<div class="cm-md-ok" style="margin:0">· 扫聊天消息：自动解析最近消息中的 ```json``` 块合并进卡片数据<br>'
       + '· 悬浮工具条可拖动，仪表盘会从工具条的上方/下方展开（选空间大的一侧）<br>'
       + '· 所有数据自动保存在 localStorage，关闭浏览器再打开数据仍在<br>'
