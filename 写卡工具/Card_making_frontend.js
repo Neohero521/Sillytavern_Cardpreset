@@ -3318,37 +3318,63 @@
         replaceBtns([{ name: BUTTON_NAME, visible: true }]);
         console.log('[时之写卡器] replaceScriptButtons 已注册按钮:', BUTTON_NAME);
       }
-      // 2. 监听按钮点击事件
-      var evtOn = typeof eventOn === 'function' ? eventOn : (window.parent && window.parent.eventOn);
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (window.parent && window.parent.getButtonEvent);
+      // 2. 监听按钮点击事件（照搬原版的查找方式）
+      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
         evtOn(getBtnEvt(BUTTON_NAME), function () {
-          console.log('[时之写卡器] ST 按钮被点击，_toolbar=', !!_toolbar);
+          console.log('[时之写卡器] ✅ ST 按钮被点击！尝试创建工具条...');
           try {
             if (!_toolbar) {
+              console.log('[时之写卡器] createToolbar 被调用');
               createToolbar();
-              // 创建后立即检查是否成功
-              var doc = parentDoc();
-              var el = doc.getElementById(SCRIPT_ID + '-toolbar');
-              console.log('[时之写卡器] 创建后 DOM 检查:', !!el, el ? ('尺寸 ' + el.offsetWidth + 'x' + el.offsetHeight) : '');
-              if (!el) {
-                addFallbackButton();
+              console.log('[时之写卡器] createToolbar 返回，_toolbar=', !!_toolbar);
+              if (!_toolbar) {
+                // 如果工具条没创建成功，直接用原版方式打开全屏（确认按钮事件没问题）
+                console.warn('[时之写卡器] 工具条创建失败，尝试用原版方式打开全屏');
+                openEditorFallback();
               }
             } else {
               setExpanded(!_expanded);
             }
           } catch(e) {
-            console.error('[时之写卡器] 按钮点击处理失败:', e);
-            addFallbackButton();
+            console.error('[时之写卡器] 按钮点击处理异常:', e);
+            openEditorFallback();
           }
         });
-        console.log('[时之写卡器] ST 按钮事件已注册');
+        console.log('[时之写卡器] ✅ ST 按钮事件已注册');
         return true;
       }
     } catch (e) {
-      console.warn('[时之写卡器] registerSTButton 失败:', e);
+      console.warn('[时之写卡器] registerSTButton 异常:', e);
     }
     return false;
+  }
+
+  // 兜底：用原版 Card_making_tool.js 的 createModalIframe 方式打开全屏
+  function openEditorFallback() {
+    try {
+      var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
+      if (old) old.remove();
+      var iframe = parentDoc.createElement('iframe');
+      iframe.id = SCRIPT_ID + '-modal';
+      iframe.setAttribute('script_id', SCRIPT_ID);
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:99999;background:#0d1117;';
+      iframe.addEventListener('load', function() {
+        try {
+          var d = iframe.contentDocument || iframe.contentWindow.document;
+          d.body.style.background = '#0d1117';
+          d.body.style.color = '#c9d1d9';
+          d.body.style.fontFamily = '-apple-system,BlinkMacSystemFont,sans-serif';
+          d.body.style.padding = '40px';
+          d.body.innerHTML = '<h2 style="color:#d2a8ff;font-size:24px;">⚡ 时之写卡器</h2><p style="color:#8b949e;font-size:14px;">工具条创建遇到问题，但按钮事件正常工作。<br>请检查控制台 [时之写卡器] 日志获取详细错误。</p><button onclick="window.close()" style="padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:14px;margin-top:16px;">关闭</button>';
+          console.log('[时之写卡器] ✅ 兜底全屏已打开');
+        } catch(e) { console.error('[时之写卡器] 兜底全屏失败:', e); }
+      });
+      parentDoc.body.appendChild(iframe);
+      console.log('[时之写卡器] 兜底 iframe 已挂载');
+    } catch(e) { console.error('[时之写卡器] openEditorFallback 失败:', e); }
   }
 
   // 自动挂载工具条（无需点击按钮即可显示）
