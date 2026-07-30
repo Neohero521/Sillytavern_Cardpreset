@@ -3186,34 +3186,55 @@
     } catch (e) { console.error('[时之写卡器] addFallbackButton 失败:', e); }
   }
 
-  // ===== 初始化：直接创建悬浮工具条（不依赖 ST 按钮系统） =====
-  // 在 ST 沙箱里，通过 import 加载的脚本可能无法访问 parent 的 eventOn/getButtonEvent
-  // 所以直接创建工具条，不等待按钮点击
+  // ===== 初始化：主动注册 ST 按钮 + 监听点击 + 自动挂载工具条 =====
+  // 参考秋青子 index.js：调用 replaceScriptButtons 主动注册按钮
+  // 这样 ST 会显示「时之写卡器」按钮，点击后触发事件
 
-  function init() {
-    // 获取目标 document（优先 parent，fallback 到自身）
+  function registerSTButton() {
+    try {
+      // 1. 主动注册按钮（参考秋青子：replaceScriptButtons）
+      var replaceBtns = typeof replaceScriptButtons === 'function' ? replaceScriptButtons
+                      : (window.parent && typeof window.parent.replaceScriptButtons === 'function' ? window.parent.replaceScriptButtons : null);
+      if (replaceBtns) {
+        replaceBtns([{ name: BUTTON_NAME, visible: true }]);
+        console.log('[时之写卡器] replaceScriptButtons 已注册按钮:', BUTTON_NAME);
+      }
+      // 2. 监听按钮点击事件
+      var evtOn = typeof eventOn === 'function' ? eventOn : (window.parent && window.parent.eventOn);
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (window.parent && window.parent.getButtonEvent);
+      if (evtOn && getBtnEvt) {
+        evtOn(getBtnEvt(BUTTON_NAME), function () {
+          console.log('[时之写卡器] ST 按钮被点击');
+          if (!_toolbar) createToolbar();
+          else setExpanded(!_expanded);
+        });
+        console.log('[时之写卡器] ST 按钮事件已注册');
+        return true;
+      }
+    } catch (e) {
+      console.warn('[时之写卡器] registerSTButton 失败:', e);
+    }
+    return false;
+  }
+
+  // 自动挂载工具条（无需点击按钮即可显示）
+  function autoMount() {
     var doc = parentDoc();
-    
-    // 如果 document.body 还不存在，延迟重试
     if (!doc || !doc.body) {
       console.log('[时之写卡器] document.body 未就绪，1秒后重试');
-      setTimeout(init, 1000);
+      setTimeout(autoMount, 1000);
       return;
     }
-    
-    // 如果已经挂载，直接返回
     if (doc.getElementById(SCRIPT_ID + '-toolbar')) {
       console.log('[时之写卡器] 工具条已存在');
       return;
     }
-    
     console.log('[时之写卡器] 开始创建工具条');
     try {
       createToolbar();
       console.log('[时之写卡器] 工具条创建成功');
     } catch (e) {
       console.error('[时之写卡器] 工具条创建失败:', e);
-      // 创建失败时，添加一个简单的 fallback 按钮
       addFallbackButton();
     }
   }
@@ -3224,24 +3245,25 @@
     removeToolbar();
   });
 
-  // 启动：立即尝试初始化
-  // 对于 ES 模块，脚本执行时 DOM 可能已经 ready
-  init();
-  
-  // 同时注册延迟兜底（处理 DOM 还未就绪的情况）
-  setTimeout(init, 500);
-  setTimeout(init, 1500);
-  setTimeout(init, 3000);
-  
-  // 尝试注册 ST 扩展按钮（可选，如果成功则支持点击按钮展开/收起）
-  try {
-    var evtOn = typeof eventOn === 'function' ? eventOn : (window.parent && window.parent.eventOn);
-    var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (window.parent && window.parent.getButtonEvent);
-    if (evtOn && getBtnEvt) {
-      evtOn(getBtnEvt(BUTTON_NAME), function () {
-        if (!_toolbar) createToolbar();
-        else setExpanded(!_expanded);
-      });
+  // 启动策略：
+  // 1. 立即注册 ST 按钮（参考秋青子，必须调用 replaceScriptButtons）
+  // 2. 简单重试注册（等 ST 初始化完成）
+  // 3. 同时延迟自动挂载工具条（双重保险）
+  var retryCount = 0;
+  function tryRegisterButton() {
+    if (registerSTButton()) { return; }
+    if (retryCount < 30) { retryCount++; setTimeout(tryRegisterButton, 500); }
+    else {
+      console.warn('[时之写卡器] ST 按钮注册失败，仅使用自动挂载');
+      addFallbackButton();
     }
-  } catch (_) {}
+  }
+
+  // 立即开始注册按钮
+  tryRegisterButton();
+  // 延迟自动挂载工具条（多重兜底）
+  setTimeout(autoMount, 1000);
+  setTimeout(autoMount, 2500);
+  setTimeout(autoMount, 5000);
+  window.addEventListener('load', autoMount);
 })();
