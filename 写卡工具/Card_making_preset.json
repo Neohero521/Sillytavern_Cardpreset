@@ -89,7 +89,7 @@
                         "enabled": true,
                         "buttons": [
                             {
-                                "name": "打开时之写卡器",
+                                "name": "时之写卡器",
                                 "visible": true
                             }
                         ]

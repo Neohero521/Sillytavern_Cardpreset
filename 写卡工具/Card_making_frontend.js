@@ -21,7 +21,7 @@
     return cn + Math.ceil(enWords * 0.75);
   }
 
-  // ===== 悬浮窗容器创建 =====
+  // ===== 悬浮窗容器创建（和原始Card_making_tool.js一致：先全屏确保可用） =====
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
@@ -31,21 +31,12 @@
         var iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
-        iframe.setAttribute('frameborder', '0');
-        // 关键：显式设置 srcdoc，确保 iframe 有内容，load 事件一定会触发
-        iframe.srcdoc = '<!doctype html><html><head></head><body></body></html>';
-        iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:min(94vw,480px);height:min(88vh,640px);border:none;z-index:99999;background:#0d1117;transition:width .3s ease,height .3s ease,border-radius .3s ease,box-shadow .3s ease;box-shadow:0 8px 40px rgba(0,0,0,.6);border-radius:14px;border:1px solid #30363d;';
-        var mounted = false;
-        function mount() {
-          if (mounted) return;
-          mounted = true;
+        // 和原始 Card_making_tool.js 一致：先全屏保证能显示
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#0d1117;';
+        iframe.addEventListener('load', function() {
           try {
-            var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-            if (!d || !d.body || !d.head) {
-              // 再等一轮
-              setTimeout(function() { if (!mounted) mount(); }, 50);
-              return;
-            }
+            var d = iframe.contentDocument || iframe.contentWindow.document;
+            if (!d || !d.body || !d.head) { reject(new Error('iframe document invalid')); return; }
             d.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
             d.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
             var s = d.createElement('style');
@@ -346,16 +337,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 `;
             d.head.appendChild(s);
             resolve(d);
-            return;
-          } catch (e) { reject(e); return; }
-          // 没 body 的话重试
-          mounted = false;
-          setTimeout(function() { if (!mounted) mount(); }, 50);
-        }
-        iframe.addEventListener('load', mount, { once: true });
+          } catch (e) { reject(e); }
+        });
         parentDoc.body.appendChild(iframe);
-        // 参照 index.js：1秒兜底，防止 load 事件不触发
-        setTimeout(mount, 1000);
+        // 兜底：如果2秒load仍未触发（某些浏览器about:blank特殊行为），手动触发
+        setTimeout(function() {
+          try {
+            var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+            if (d && d.body && d.head && !d.getElementById(SCRIPT_ID + '-inited')) {
+              var marker = d.createElement('span');
+              marker.id = SCRIPT_ID + '-inited';
+              marker.style.display = 'none';
+              d.body.appendChild(marker);
+              d.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
+              d.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
+              var s2 = d.createElement('style');
+              s2.textContent = `
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;width:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;font-size:14px}
+.panel{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#0d1117}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+`;
+              d.head.appendChild(s2);
+              resolve(d);
+            }
+          } catch(_) {}
+        }, 1500);
       } catch (e) { reject(e); }
     });
   }
@@ -2911,40 +2922,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         return null;
       }
 
-      function expandPanel() {
-        var iframe = getIframe();
-        if (!iframe) return;
-        var iw = iframe.contentWindow || {};
-        try { iframe.style.width = iw._panelW || 'min(94vw, 480px)'; } catch(_) { iframe.style.width = 'min(94vw, 480px)'; }
-        try { iframe.style.height = iw._panelH || 'min(88vh, 640px)'; } catch(_) { iframe.style.height = 'min(88vh, 640px)'; }
-        iframe.style.borderRadius = '14px';
-        iframe.style.background = '#0d1117';
-        iframe.style.boxShadow = '0 8px 40px rgba(0,0,0,.6)';
-        iframe.style.border = '1px solid #30363d';
-      }
-
-      function collapsePanel() {
-        var iframe = getIframe();
-        if (!iframe) return;
-        try {
-          var r = iframe.getBoundingClientRect();
-          var w = iframe.contentWindow || {};
-          w._panelW = iframe.style.width;
-          w._panelH = iframe.style.height;
-          w._panelLeft = r.left + 'px';
-          w._panelTop = r.top + 'px';
-        } catch(_) {}
-        iframe.style.width = '52px';
-        iframe.style.height = '52px';
-        iframe.style.borderRadius = '50%';
-        iframe.style.border = 'none';
-      }
+      // 全屏模式：expand/collapse 都是 no-op（先全屏测通）
+      function expandPanel() {}
+      function collapsePanel() {}
 
       function showFab() {
-        collapsePanel();
-        doc.body.innerHTML = '<button class="fab" id="fabBtn" title="打开时之写卡器">⚡</button>';
-        var fab = doc.getElementById('fabBtn');
-        if (fab) fab.addEventListener('click', function() { expandPanel(); renderWelcome(); });
+        // 全屏模式下关闭=移除iframe，最小化时直接关闭即可
+        closeModal();
       }
 
       function switchTab(tabName) {
@@ -2955,38 +2939,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (tabName === 'preset') { var pp = doc.getElementById('presetPanel'); if (pp && pp.children.length === 0) renderPresetPanel(); }
       }
 
-      function initDrag() {
-        var header = doc.getElementById('panelHeader');
-        if (!header) return;
-        var iframe = getIframe();
-        if (!iframe) return;
-        var dragging = false, sx, sy, sLeft, sTop;
-        header.addEventListener('mousedown', function(e) {
-          if (e.target.classList.contains('ph-btn')) return;
-          dragging = true; sx = e.clientX; sy = e.clientY;
-          var r = iframe.getBoundingClientRect();
-          sLeft = r.left; sTop = r.top;
-          iframe.style.transition = 'none';
-          try { iframe.style.right = 'auto'; iframe.style.bottom = 'auto'; } catch(_) {}
-          iframe.style.left = sLeft + 'px';
-          iframe.style.top = sTop + 'px';
-          e.preventDefault();
-        });
-        doc.addEventListener('mousemove', function(e) {
-          if (!dragging) return;
-          var iw = typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 1200;
-          var ih = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : 800;
-          try {
-            iw = window.parent && window.parent.innerWidth ? window.parent.innerWidth : iw;
-            ih = window.parent && window.parent.innerHeight ? window.parent.innerHeight : ih;
-          } catch(_) {}
-          var nl = Math.max(0, Math.min(iw - 100, sLeft + e.clientX - sx));
-          var nt = Math.max(0, Math.min(ih - 60, sTop + e.clientY - sy));
-          iframe.style.left = nl + 'px';
-          iframe.style.top = nt + 'px';
-        });
-        doc.addEventListener('mouseup', function() { if (dragging) { dragging = false; iframe.style.transition = ''; } });
-      }
+      function initDrag() { /* 全屏模式无需拖拽 */ }
 
       function renderWelcome() {
         expandPanel();
@@ -5460,22 +5413,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
   }
 
-  var BUTTON_NAME = '打开时之写卡器';
+  // 和原始Card_making_tool.js一致：用'时之写卡器'
+  var BUTTON_NAME = '时之写卡器';
 
   function registerButton() {
     try {
-      // 参照 index.js：用 replaceScriptButtons 主动注册按钮
-      var rbs = typeof replaceScriptButtons === 'function' ? replaceScriptButtons : (typeof window.replaceScriptButtons === 'function' ? window.replaceScriptButtons : null);
-      if (rbs) {
-        rbs([{ name: BUTTON_NAME, visible: true }]);
-      }
-      var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
+      var evtOn = typeof eventOn === 'function' ? eventOn : null;
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : null;
       if (evtOn && getBtnEvt) {
         evtOn(getBtnEvt(BUTTON_NAME), function() { openEditor(); });
         return true;
       }
-    } catch(e) { console.warn('registerButton failed:', e); }
+    } catch(e) {}
     return false;
   }
 
@@ -5496,25 +5445,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     } catch(e) { return false; }
   }
 
-  // 参照 index.js：用 jQuery ready 初始化
-  function init() {
-    if (registerButton()) return;
-    // SillyTavern 全局函数可能还未就绪，重试几次
-    var retryCount = 0;
-    function retry() {
-      if (registerButton()) return;
-      if (retryCount < 20) { retryCount++; setTimeout(retry, 300); }
-      else { addFloatingButton(); }
-    }
-    retry();
+  // 和原始Card_making_tool.js一致：简单重试，不用jQuery ready
+  var retryCount = 0;
+  function tryInit() {
+    if (registerButton()) { return; }
+    if (retryCount < 10) { retryCount++; setTimeout(tryInit, 500); }
+    else { addFloatingButton(); }
   }
 
   window.addEventListener('pagehide', closeModal);
-
-  // 优先用 jQuery ready（SillyTavern 环境一定有 $）
-  if (typeof window.$ === 'function' || typeof window.jQuery === 'function') {
-    (window.$ || window.jQuery)(function() { init(); });
-  } else {
-    init();
-  }
+  tryInit();
 })();
