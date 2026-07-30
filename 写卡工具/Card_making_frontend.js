@@ -2849,24 +2849,31 @@
   function renderPanel() {
     if (!_toolbar) return;
     var p = _toolbar.panel;
-    var charName = fetchCurrentCharName();
-    var completion = calcCompletion();
-    var html = ''
-      + '<div class="cm-title">'
-      + '<span>⚡ 时之写卡器</span>'
-      + '<div class="cm-title-btns">'
-      + '<button data-act="collapse" title="收起">−</button>'
-      + '<button data-act="close" title="关闭">×</button>'
-      + '</div>'
-      + '</div>'
-      + '<div class="cm-body">'
-      + renderStatusHtml(charName, completion)
-      + renderCardPreviewHtml()
-      + renderPresetHtml()
-      + renderActionsHtml()
-      + '</div>';
-    p.innerHTML = html;
-    wirePanelEvents();
+    try {
+      var charName = fetchCurrentCharName();
+      var completion = calcCompletion();
+      var statusHtml = '', cardHtml = '', presetHtml = '', actionsHtml = '';
+      try { statusHtml = renderStatusHtml(charName, completion); } catch(e) { console.warn('[时之写卡器] renderStatusHtml 失败:', e); }
+      try { cardHtml = renderCardPreviewHtml(); } catch(e) { console.warn('[时之写卡器] renderCardPreviewHtml 失败:', e); }
+      try { presetHtml = renderPresetHtml(); } catch(e) { console.warn('[时之写卡器] renderPresetHtml 失败:', e); }
+      try { actionsHtml = renderActionsHtml(); } catch(e) { console.warn('[时之写卡器] renderActionsHtml 失败:', e); }
+      var html = ''
+        + '<div class="cm-title">'
+        + '<span>⚡ 时之写卡器</span>'
+        + '<div class="cm-title-btns">'
+        + '<button data-act="collapse" title="收起">−</button>'
+        + '<button data-act="close" title="关闭">×</button>'
+        + '</div>'
+        + '</div>'
+        + '<div class="cm-body">'
+        + statusHtml + cardHtml + presetHtml + actionsHtml
+        + '</div>';
+      p.innerHTML = html;
+      try { wirePanelEvents(); } catch(e) { console.warn('[时之写卡器] wirePanelEvents 失败:', e); }
+    } catch (e) {
+      console.error('[时之写卡器] renderPanel 整体失败:', e);
+      p.innerHTML = '<div style="padding:12px;color:#fca5a5;font-size:12px;">面板渲染失败: ' + (e && e.message || e) + '</div>';
+    }
   }
 
   function wirePanelEvents() {
@@ -2993,47 +3000,89 @@
 
   // 创建悬浮工具条（FAB + 面板），自动注入 parent.document
   function createToolbar() {
-    if (_toolbar) { setExpanded(true); return; }
-    if (!_cardData) initCardData();
-    var doc = parentDoc();
-    injectStyles();
-    var container = doc.createElement('div');
-    container.id = SCRIPT_ID + '-toolbar';
-
-    // 折叠态：圆形 FAB + 完成度徽标 + 同步状态点
-    var fab = doc.createElement('button');
-    fab.className = 'cm-fab';
-    fab.title = '时之写卡器 · 点击展开';
-    fab.textContent = '⚡';
-    var badge = doc.createElement('span');
-    badge.className = 'cm-badge zero';
-    badge.textContent = '0%';
-    var dot = doc.createElement('span');
-    dot.className = 'cm-dot';
-    fab.appendChild(badge);
-    fab.appendChild(dot);
-    fab.onclick = function () { setExpanded(!_expanded); };
-
-    // 展开态面板
-    var panel = doc.createElement('div');
-    panel.className = 'cm-panel';
-    container.appendChild(fab);
-    container.appendChild(panel);
-    doc.body.appendChild(container);
-
-    _toolbar = { container: container, fab: fab, badge: badge, dot: dot, panel: panel };
-    makeDraggable();
-    updateBadge();
-    updateDot();
-    setExpanded(true);
-
-    // 启动聊天监听（仅一次）
-    if (!_listenersRegistered) {
-      registerChatListeners(function () { autoExtractFromChat(); });
-      _listenersRegistered = true;
+    if (_toolbar) {
+      // 已存在，直接展开
+      try { _toolbar.panel.classList.add('show'); _toolbar.fab.classList.add('active'); renderPanel(); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
+      return;
     }
-    // 首次拉取一次历史消息
-    setTimeout(function () { autoExtractFromChat(true); }, 300);
+    try {
+      if (!_cardData) initCardData();
+      var doc = parentDoc();
+      if (!doc || !doc.body) {
+        console.error('[时之写卡器] parentDoc 无 body，无法创建工具条');
+        return;
+      }
+      console.log('[时之写卡器] parentDoc.body 已就绪，开始创建 DOM');
+      try { injectStyles(); } catch(e) { console.warn('[时之写卡器] injectStyles 失败:', e); }
+
+      var container = doc.createElement('div');
+      container.id = SCRIPT_ID + '-toolbar';
+
+      // 折叠态：圆形 FAB
+      var fab = doc.createElement('button');
+      fab.className = 'cm-fab';
+      fab.title = '时之写卡器 · 点击展开';
+      fab.textContent = '⚡';
+      var badge = doc.createElement('span');
+      badge.className = 'cm-badge zero';
+      badge.textContent = '0%';
+      var dot = doc.createElement('span');
+      dot.className = 'cm-dot';
+      fab.appendChild(badge);
+      fab.appendChild(dot);
+      fab.onclick = function () {
+        try {
+          if (!_toolbar) return;
+          _expanded = !_expanded;
+          if (_expanded) {
+            _toolbar.panel.classList.add('show');
+            _toolbar.fab.classList.add('active');
+            renderPanel();
+          } else {
+            _toolbar.panel.classList.remove('show');
+            _toolbar.fab.classList.remove('active');
+          }
+        } catch(e) { console.error('[时之写卡器] FAB 点击失败:', e); }
+      };
+
+      // 展开态面板
+      var panel = doc.createElement('div');
+      panel.className = 'cm-panel';
+      container.appendChild(fab);
+      container.appendChild(panel);
+      doc.body.appendChild(container);
+      console.log('[时之写卡器] DOM 已挂载到 body');
+
+      _toolbar = { container: container, fab: fab, badge: badge, dot: dot, panel: panel };
+
+      // 以下都是非关键步骤，失败不影响工具条显示
+      try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable 失败:', e); }
+      try { updateBadge(); } catch(e) { console.warn('[时之写卡器] updateBadge 失败:', e); }
+      try { updateDot(); } catch(e) { console.warn('[时之写卡器] updateDot 失败:', e); }
+
+      // 默认展开
+      _expanded = true;
+      try {
+        panel.classList.add('show');
+        fab.classList.add('active');
+        renderPanel();
+      } catch(e) { console.warn('[时之写卡器] renderPanel 失败（工具条已显示）:', e); }
+
+      // 启动聊天监听（仅一次）
+      if (!_listenersRegistered) {
+        try {
+          registerChatListeners(function () { autoExtractFromChat(); });
+          _listenersRegistered = true;
+        } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
+      }
+      // 首次拉取一次历史消息
+      setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
+
+      console.log('[时之写卡器] ✅ 工具条创建完成');
+    } catch (e) {
+      console.error('[时之写卡器] ❌ createToolbar 整体失败:', e);
+      addFallbackButton();
+    }
   }
 
   function removeToolbar() {
@@ -3204,9 +3253,24 @@
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (window.parent && window.parent.getButtonEvent);
       if (evtOn && getBtnEvt) {
         evtOn(getBtnEvt(BUTTON_NAME), function () {
-          console.log('[时之写卡器] ST 按钮被点击');
-          if (!_toolbar) createToolbar();
-          else setExpanded(!_expanded);
+          console.log('[时之写卡器] ST 按钮被点击，_toolbar=', !!_toolbar);
+          try {
+            if (!_toolbar) {
+              createToolbar();
+              // 创建后立即检查是否成功
+              var doc = parentDoc();
+              var el = doc.getElementById(SCRIPT_ID + '-toolbar');
+              console.log('[时之写卡器] 创建后 DOM 检查:', !!el, el ? ('尺寸 ' + el.offsetWidth + 'x' + el.offsetHeight) : '');
+              if (!el) {
+                addFallbackButton();
+              }
+            } else {
+              setExpanded(!_expanded);
+            }
+          } catch(e) {
+            console.error('[时之写卡器] 按钮点击处理失败:', e);
+            addFallbackButton();
+          }
         });
         console.log('[时之写卡器] ST 按钮事件已注册');
         return true;
