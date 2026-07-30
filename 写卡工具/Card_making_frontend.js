@@ -1,4 +1,13 @@
 (function() {
+  // === 调试：脚本加载时立即标记（帮助确认脚本是否被执行）===
+  try { console.log('[时之写卡器] 📦 脚本开始执行，时间:', new Date().toISOString()); } catch(_) {}
+  try {
+    if (typeof window !== 'undefined') {
+      window.__CARD_TOOL_LOADED = true;
+      if (window.parent) window.parent.__CARD_TOOL_LOADED = true;
+    }
+  } catch(_) {}
+
   const SCRIPT_ID = 'modelo-char-generator';
 
   function showToast(msg, type) {
@@ -3214,26 +3223,34 @@
     mergePartial(src, _cardData);
   }
 
-  // 独立 fallback 悬浮按钮（工具条创建失败时的兜底）
-  function addFallbackButton() {
+  // 独立悬浮按钮（完全照搬原版 Card_making_tool.js 的 addFloatingButton，已验证可工作）
+  function addFloatingButton() {
     try {
-      var doc = parentDoc();
-      var old = doc.getElementById(SCRIPT_ID + '-fallback');
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var old = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (old) old.remove();
-      var btn = doc.createElement('button');
-      btn.id = SCRIPT_ID + '-fallback';
-      btn.textContent = '⚡ 写卡器';
-      btn.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:999998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:transform .2s;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-      btn.onmouseover = function () { btn.style.transform = 'scale(1.05)'; };
-      btn.onmouseout = function () { btn.style.transform = 'scale(1)'; };
-      btn.onclick = function () {
+      var btn = pDoc.createElement('button');
+      btn.id = SCRIPT_ID + '-btn';
+      btn.textContent = '⚡ 时之写卡器';
+      btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:all .3s;font-size:14px;';
+      btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
+      btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
+      btn.onclick = function() {
+        console.log('[时之写卡器] 悬浮按钮被点击');
         if (!_toolbar) createToolbar();
-        else setExpanded(true);
+        else setExpanded(!_expanded);
       };
-      doc.body.appendChild(btn);
-      console.log('[时之写卡器] 已挂载 fallback 悬浮按钮');
-    } catch (e) { console.error('[时之写卡器] addFallbackButton 失败:', e); }
+      pDoc.body.appendChild(btn);
+      console.log('[时之写卡器] ✅ 悬浮按钮已挂载到 parent.document.body');
+      return true;
+    } catch(e) {
+      console.error('[时之写卡器] addFloatingButton 失败:', e);
+      return false;
+    }
   }
+
+  // 兼容旧名
+  function addFallbackButton() { return addFloatingButton(); }
 
   // ===== 初始化：主动注册 ST 按钮 + 监听点击 + 自动挂载工具条 =====
   // 参考秋青子 index.js：调用 replaceScriptButtons 主动注册按钮
@@ -3299,7 +3316,7 @@
       console.log('[时之写卡器] 工具条创建成功');
     } catch (e) {
       console.error('[时之写卡器] 工具条创建失败:', e);
-      addFallbackButton();
+      addFloatingButton();
     }
   }
 
@@ -3309,25 +3326,38 @@
     removeToolbar();
   });
 
-  // 启动策略：
-  // 1. 立即注册 ST 按钮（参考秋青子，必须调用 replaceScriptButtons）
-  // 2. 简单重试注册（等 ST 初始化完成）
-  // 3. 同时延迟自动挂载工具条（双重保险）
+  // ===== 启动策略（完全照搬原版 Card_making_tool.js 的 tryInit 模式）=====
+  // 原版逻辑：先尝试注册 ST 按钮，失败重试 10 次，最终 fallback 到悬浮按钮
+  // 这里加上：立即也尝试挂一次悬浮按钮（双保险，确保用户一定能看到入口）
   var retryCount = 0;
-  function tryRegisterButton() {
-    if (registerSTButton()) { return; }
-    if (retryCount < 30) { retryCount++; setTimeout(tryRegisterButton, 500); }
-    else {
-      console.warn('[时之写卡器] ST 按钮注册失败，仅使用自动挂载');
-      addFallbackButton();
+  function tryInit() {
+    if (registerSTButton()) {
+      console.log('[时之写卡器] ✅ ST 按钮注册成功');
+      return;
+    }
+    if (retryCount < 10) {
+      retryCount++;
+      setTimeout(tryInit, 500);
+    } else {
+      console.warn('[时之写卡器] ST 按钮注册失败 10 次，改用悬浮按钮');
+      addFloatingButton();
     }
   }
 
-  // 立即开始注册按钮
-  tryRegisterButton();
-  // 延迟自动挂载工具条（多重兜底）
-  setTimeout(autoMount, 1000);
-  setTimeout(autoMount, 2500);
-  setTimeout(autoMount, 5000);
+  // 立即开始注册 ST 按钮（原版模式）
+  tryInit();
+
+  // 同时立即尝试挂悬浮按钮（不等 ST 按钮，确保用户马上能看到入口）
+  // 如果 ST 按钮也注册成功了，悬浮按钮会被点击事件替代，两者并存不冲突
+  setTimeout(function() {
+    var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+    if (pDoc && pDoc.body && !pDoc.getElementById(SCRIPT_ID + '-btn') && !pDoc.getElementById(SCRIPT_ID + '-toolbar')) {
+      addFloatingButton();
+    }
+  }, 800);
+
+  // 延迟自动挂载工具条（多重兜底，仅当悬浮按钮已存在时才尝试展开）
+  setTimeout(autoMount, 2000);
+  setTimeout(autoMount, 4000);
   window.addEventListener('load', autoMount);
 })();
