@@ -8,6 +8,26 @@
     }
   } catch(_) {}
 
+  // === 立即测试 DOM 操作是否可行 ===
+  // 在脚本执行的最开始就尝试创建一个简单的测试标记
+  // 如果这个标记都不显示，说明脚本根本没有执行或 DOM 访问被阻止
+  try {
+    var testDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+    if (testDoc && testDoc.body) {
+      var testDiv = testDoc.createElement('div');
+      testDiv.id = 'modelo-char-generator-test';
+      testDiv.textContent = '时之写卡器已加载';
+      testDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:2147483647;padding:4px 8px;background:#7c3aed;color:#fff;font-size:11px;border-radius:4px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);opacity:.85;transition:opacity .5s;';
+      testDoc.body.appendChild(testDiv);
+      console.log('[时之写卡器] ✅ 测试标记已创建到 parent.document.body');
+      // 3秒后淡出
+      setTimeout(function() { try { testDiv.style.opacity = '0'; } catch(_) {} }, 3000);
+      setTimeout(function() { try { if (testDiv.parentNode) testDiv.parentNode.removeChild(testDiv); } catch(_) {} }, 4000);
+    }
+  } catch(e) {
+    console.error('[时之写卡器] ❌ DOM 测试失败:', e.message);
+  }
+
   const SCRIPT_ID = 'modelo-char-generator';
 
   function showToast(msg, type) {
@@ -385,6 +405,9 @@
 
   // 缓存当前预设提示词列表（含区段信息）
   var _presetCache = { prompts: [], ts: 0 };
+
+  // 预设开关状态（key: prompt名称, value: 是否启用）
+  var _presetState = {};
 
   function isPresetNormalPrompt(p) {
     return p && !p.marker && p.system_prompt !== true;
@@ -2797,7 +2820,9 @@
     var cd = _cardData || {};
     var entries = (cd.character_book && cd.character_book.entries) || [];
     function hasStr(s) { return !!(s && s.toString().trim()); }
-    function chk(ok) { return ok ? '<span class="cm-field-status ok">✓</span>' : '<span class="cm-field-status">○</span>'; }
+    function chk(ok) { return ok
+      ? '<span style="color:#3fb950;font-weight:700;">✓</span>'
+      : '<span style="color:#484f58;">○</span>'; }
     var rows = [
       ['name', hasStr(cd.name)],
       ['description', hasStr(cd.description)],
@@ -2810,7 +2835,10 @@
       ['世界书(' + entries.length + ')', entries.length > 0]
     ];
     var body = rows.map(function (r) {
-      return '<div class="cm-field"><span class="cm-field-name">' + escHtml(r[0]) + '</span>' + chk(r[1]) + '</div>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">'
+        + '<span style="color:#c9d1d9;">' + escHtml(r[0]) + '</span>'
+        + chk(r[1])
+        + '</div>';
     }).join('');
     return body;
   }
@@ -2824,12 +2852,16 @@
     var body = '';
     order.forEach(function (sec) {
       if (!groups[sec].length) return;
-      body += '<div class="cm-preset-group-title">' + escHtml(SECTION_LABELS[sec] || sec) + '</div>';
+      body += '<div style="color:#8b949e;font-size:11px;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;">' + escHtml(SECTION_LABELS[sec] || sec) + '</div>';
       groups[sec].forEach(function (p) {
-        var cls = 'toggle' + (p.enabled ? ' on' : '');
-        body += '<div class="cm-preset-item">'
-          + '<span class="label" title="' + escHtml(p.name) + '">' + escHtml(p.displayName || p.name) + '</span>'
-          + '<div class="' + cls + '" data-name="' + escHtml(p.name) + '"></div>'
+        var isOn = _presetState[p.name] !== false; // 默认为启用
+        var toggleBg = isOn ? '#3fb950' : '#30363d';
+        var togglePos = isOn ? '14px' : '2px';
+        body += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;gap:8px;">'
+          + '<span style="color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(p.name) + '">' + escHtml(p.displayName || p.name) + '</span>'
+          + '<div class="preset-toggle" data-name="' + escHtml(p.name) + '" style="position:relative;width:32px;height:18px;background:' + toggleBg + ';border-radius:9px;cursor:pointer;transition:background .2s;flex-shrink:0;">'
+          + '<div style="position:absolute;top:2px;left:' + togglePos + ';width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;"></div>'
+          + '</div>'
           + '</div>';
       });
     });
@@ -2878,21 +2910,16 @@
       if (ps) {
         var presetHtml = renderPresetHtml();
         ps.innerHTML = presetHtml;
-        // 绑定开关事件
-        ps.querySelectorAll('.cm-preset-item').forEach(function(item) {
+        // 绑定开关事件（使用 .preset-toggle 类）
+        ps.querySelectorAll('.preset-toggle').forEach(function(item) {
           item.addEventListener('click', function() {
-            var toggle = item.querySelector('.toggle');
-            var name = toggle ? toggle.dataset.name : '';
-            if (name) togglePresetPrompt(name);
-            renderPanel();
+            var name = item.getAttribute('data-name');
+            if (name) {
+              togglePresetPrompt(name);
+              renderPanel();
+            }
           });
         });
-        var pc = d.getElementById('presetCount');
-        if (pc) {
-          var total = 0, on = 0;
-          for (var k in _presetState) { total++; if (_presetState[k]) on++; }
-          pc.textContent = on + '/' + total;
-        }
       }
 
       // 更新徽标
@@ -2976,13 +3003,14 @@
 
   function removeToolbar() {
     if (_toolbar) {
-      try { _toolbar.iframe.remove(); } catch (_) {}
+      try { if (_toolbar.container) _toolbar.container.remove(); } catch (_) {}
+      try { if (_toolbar.panel) _toolbar.panel.remove(); } catch (_) {}
       _toolbar = null;
     }
     _expanded = false;
   }
 
-  // setExpanded：兼容 iframe 方式
+  // setExpanded：纯 DOM 方式
   function setExpanded(v) {
     _expanded = !!v;
     if (!_toolbar || !_toolbar.panel) {
@@ -2990,10 +3018,10 @@
       return;
     }
     if (_expanded) {
-      _toolbar.panel.classList.remove('hidden');
+      _toolbar.panel.style.display = 'flex';
       renderPanel();
     } else {
-      _toolbar.panel.classList.add('hidden');
+      _toolbar.panel.style.display = 'none';
     }
   }
 
@@ -3010,7 +3038,7 @@
       dragging = true;
       var t = e.touches ? e.touches[0] : e;
       sx = t.clientX; sy = t.clientY;
-      var rect = _toolbar.iframe.getBoundingClientRect();
+      var rect = _toolbar.panel.getBoundingClientRect();
       ox = rect.left; oy = rect.top;
       e.preventDefault();
     };
@@ -3018,10 +3046,10 @@
       if (!dragging) return;
       var t = e.touches ? e.touches[0] : e;
       var dx = t.clientX - sx, dy = t.clientY - sy;
-      _toolbar.iframe.style.left = (ox + dx) + 'px';
-      _toolbar.iframe.style.top = (oy + dy) + 'px';
-      _toolbar.iframe.style.right = 'auto';
-      _toolbar.iframe.style.bottom = 'auto';
+      _toolbar.panel.style.left = (ox + dx) + 'px';
+      _toolbar.panel.style.top = (oy + dy) + 'px';
+      _toolbar.panel.style.right = 'auto';
+      _toolbar.panel.style.bottom = 'auto';
     };
     var onUp = function () { dragging = false; };
     title.addEventListener('mousedown', onDown);
@@ -3032,171 +3060,153 @@
     doc.addEventListener('touchend', onUp);
   }
 
-  // 创建悬浮工具条：1:1 照搬原版 createModalIframe 模式
-  // 原版已验证可在 ST 沙箱工作：Promise + load 事件 + contentDocument
+  // 创建悬浮工具条（纯 DOM 方式，不使用 iframe，避免跨域/CSP 问题）
   function createToolbar() {
     if (_toolbar) {
       try { setExpanded(true); } catch(e) {}
       return;
     }
-    var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-    if (!parentDoc || !parentDoc.body) {
+    var doc = parentDoc();
+    if (!doc || !doc.body) {
       console.error('[时之写卡器] parent.document.body 不可用');
+      // 立即重试
+      setTimeout(createToolbar, 500);
       return;
     }
-    // 先创建一个折叠态的小圆钮
-    var old = parentDoc.getElementById(SCRIPT_ID + '-toolbar');
-    if (old) old.remove();
-    var iframe = parentDoc.createElement('iframe');
-    iframe.id = SCRIPT_ID + '-toolbar';
-    iframe.setAttribute('script_id', SCRIPT_ID);
-    // 折叠态：56x56 圆形
-    iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:56px;height:56px;border:none;z-index:99999;background:linear-gradient(135deg,#7c3aed,#ec4899);border-radius:28px;overflow:hidden;box-shadow:0 8px 24px rgba(124,58,237,.45);';
-    var loaded = false;
-    iframe.addEventListener('load', function() {
-      if (loaded) return;
-      loaded = true;
-      try {
-        var d = iframe.contentDocument || iframe.contentWindow.document;
-        // 注入样式（照搬原版方式）
-        var s = d.createElement('style');
-        s.textContent = '*{margin:0;padding:0;box-sizing:border-box}'
-          + 'html,body{height:100%;width:100%;overflow:hidden}'
-          + 'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#c9d1d9;font-size:13px}'
-          + '.cm-fab{width:100%;height:100%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center}'
-          + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
-          + '.cm-badge.zero{background:#6b7280}'
-          + '.cm-dot{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
-          + '.cm-dot.off{background:#6b7280}'
-          + '.cm-panel{position:fixed;bottom:80px;right:0;width:340px;height:500px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden}'
-          + '.cm-panel.hidden{display:none}'
-          + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:600;font-size:14px;color:#fff}'
-          + '.cm-title-btns{display:flex;gap:6px}'
-          + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:14px}'
-          + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
-          + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
-          + '.cm-status .stat{color:#8b949e}'
-          + '.cm-status .stat b{color:#e6edf3}'
-          + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
-          + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
-          + '.cm-section{margin-bottom:10px}'
-          + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
-          + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
-          + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
-          + '.cm-field:last-child{border-bottom:none}'
-          + '.cm-field-name{color:#8b949e}'
-          + '.cm-field-status.ok{color:#3fb950}'
-          + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
-          + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer}'
-          + '.cm-btn:hover{background:#30363d}'
-          + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
-          + '.cm-preset-group{margin-bottom:6px}'
-          + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
-          + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
-          + '.cm-preset-item:hover{background:#161b22}'
-          + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
-          + '.cm-preset-item .toggle.on{background:#3fb950}'
-          + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
-          + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
-          + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}';
-        d.head.appendChild(s);
 
-        // 写入 FAB 结构
-        d.body.innerHTML = '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
-          + '<div class="cm-dot" id="dot"></div>'
-          + '<div class="cm-panel hidden" id="panel">'
-          + '  <div class="cm-title">'
-          + '    <span>⚡ 时之写卡器</span>'
-          + '    <div class="cm-title-btns"><button id="collapseBtn">—</button><button id="closeBtn">✕</button></div>'
-          + '  </div>'
-          + '  <div class="cm-body">'
-          + '    <div class="cm-status">'
-          + '      <span class="stat">👤 <b id="charName">-</b></span>'
-          + '      <span class="stat">💬 <b id="msgCount">0</b></span>'
-          + '      <span class="stat">📊 <b id="completionLabel">0%</b></span>'
-          + '    </div>'
-          + '    <div class="cm-progress"><div class="cm-progress-fill" id="progressFill" style="width:0%"></div></div>'
-          + '    <div class="cm-section">'
-          + '      <div class="cm-section-title" data-toggle="cardFields">📋 角色卡 <span id="cardProgressText">0/9</span></div>'
-          + '      <div class="cm-card-fields" id="cardFields"></div>'
-          + '    </div>'
-          + '    <div class="cm-section">'
-          + '      <div class="cm-section-title" data-toggle="presets">⚙️ 预设开关 <span id="presetCount"></span></div>'
-          + '      <div id="presets"></div>'
-          + '    </div>'
-          + '    <div class="cm-actions">'
-          + '      <button class="cm-btn primary" id="exportBtn">📥 导出</button>'
-          + '      <button class="cm-btn" id="importBtn">📤 导入</button>'
-          + '      <button class="cm-btn" id="refreshBtn">🔄 刷新</button>'
-          + '      <button class="cm-btn" id="clearBtn">🗑️ 清空</button>'
-          + '    </div>'
-          + '  </div>'
-          + '</div>';
+    try {
+      // 移除旧的
+      var oldToolbar = doc.getElementById(SCRIPT_ID + '-toolbar');
+      if (oldToolbar) oldToolbar.remove();
+      var oldPanel = doc.getElementById(SCRIPT_ID + '-panel');
+      if (oldPanel) oldPanel.remove();
 
-        var fab = d.getElementById('fab');
-        var badge = d.getElementById('badge');
-        var dot = d.getElementById('dot');
-        var panel = d.getElementById('panel');
+      // ===== 创建 FAB 按钮（折叠态：右下角圆形按钮，使用内联样式）=====
+      var fab = doc.createElement('div');
+      fab.id = SCRIPT_ID + '-toolbar';
+      fab.style.cssText = 'position:fixed !important;bottom:24px !important;right:24px !important;z-index:2147483647 !important;';
+      fab.innerHTML =
+        '<button id="fabBtn" style="position:relative;width:52px;height:52px;border:none;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,.5);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;transition:transform .2s;padding:0;">'
+        + '<span style="line-height:1;">⚡</span>'
+        + '<span id="badge" style="position:absolute;bottom:-4px;right:-4px;background:#3fb950;color:#fff;font-size:10px;font-weight:bold;padding:2px 5px;border-radius:10px;border:2px solid #0d1117;">0%</span>'
+        + '</button>';
 
-        _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
+      doc.body.appendChild(fab);
 
-        // FAB 点击展开/收起
-        fab.addEventListener('click', function () { setExpanded(!_expanded); });
-        // 关闭按钮
-        d.getElementById('closeBtn').addEventListener('click', function () {
-          iframe.remove(); _toolbar = null;
-          _expanded = false;
+      // ===== 创建面板（展开态，使用内联样式）=====
+      var panel = doc.createElement('div');
+      panel.id = SCRIPT_ID + '-panel';
+      panel.style.cssText = 'position:fixed !important;bottom:84px !important;right:24px !important;width:360px !important;max-height:580px !important;background:#0d1117 !important;color:#e6edf3 !important;border:1px solid #30363d !important;border-radius:14px !important;box-shadow:0 16px 48px rgba(0,0,0,.6) !important;display:none !important;flex-direction:column !important;overflow:hidden !important;z-index:2147483647 !important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;';
+
+      panel.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff;">'
+        + '  <span>⚡ 时之写卡器</span>'
+        + '  <div style="display:flex;gap:6px;">'
+        + '    <button id="collapseBtn" style="width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;">—</button>'
+        + '    <button id="closeBtn" style="width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;">✕</button>'
+        + '  </div>'
+        + '</div>'
+        + '<div style="overflow-y:auto;padding:12px 14px;flex:1;">'
+        + '  <div style="display:flex;align-items:center;gap:8px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">'
+        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">👤 <b id="charName" style="color:#58a6ff;font-weight:600;">-</b></span>'
+        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">💬 <b id="msgCount" style="color:#58a6ff;font-weight:600;">0</b></span>'
+        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">📊 <b id="completionLabel" style="color:#58a6ff;font-weight:600;">0%</b></span>'
+        + '  </div>'
+        + '  <div style="height:5px;background:#21262d;border-radius:3px;overflow:hidden;margin-bottom:10px;">'
+        + '    <div id="progressFill" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .35s ease;width:0%;"></div>'
+        + '  </div>'
+        + '  <div style="border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117;">'
+        + '    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3;" data-target="cardFields">📋 角色卡 <span style="color:#8b949e;font-size:11px;">▼</span></div>'
+        + '    <div id="cardFields" style="padding:8px 12px;font-size:12px;display:block;"></div>'
+        + '  </div>'
+        + '  <div style="border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117;">'
+        + '    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3;" data-target="presets">⚙️ 预设开关 <span style="color:#8b949e;font-size:11px;">▶</span></div>'
+        + '    <div id="presets" style="padding:8px 12px;font-size:12px;display:none;"></div>'
+        + '  </div>'
+        + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">'
+        + '    <button id="exportBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:12px;font-weight:600;">📥 导出</button>'
+        + '    <button id="importBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;">📤 导入</button>'
+        + '    <button id="refreshBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;">🔄 刷新</button>'
+        + '    <button id="clearBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#da3633;color:#fff;font-size:12px;font-weight:600;">🗑️ 清空</button>'
+        + '  </div>'
+        + '</div>';
+
+      doc.body.appendChild(panel);
+
+      // 保存引用
+      var fabBtn = fab.querySelector('#fabBtn');
+      var badge = fab.querySelector('#badge');
+
+      _toolbar = {
+        container: fab,
+        panel: panel,
+        fab: fabBtn,
+        badge: badge,
+        dot: null,
+        doc: doc
+      };
+
+      // ===== 事件绑定 =====
+      fabBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setExpanded(!_expanded);
+      });
+
+      panel.querySelector('#closeBtn').addEventListener('click', function () {
+        removeToolbar();
+      });
+
+      panel.querySelector('#collapseBtn').addEventListener('click', function () {
+        setExpanded(false);
+      });
+
+      // 区段折叠（使用 data-target 属性）
+      panel.querySelectorAll('[data-target]').forEach(function(el) {
+        el.addEventListener('click', function() {
+          var targetId = el.getAttribute('data-target');
+          var target = panel.querySelector('#' + targetId);
+          if (target) {
+            target.style.display = target.style.display === 'none' ? 'block' : 'none';
+          }
         });
-        // 折叠按钮
-        d.getElementById('collapseBtn').addEventListener('click', function () {
-          setExpanded(false);
-        });
-        // 分区折叠
-        d.querySelectorAll('.cm-section-title').forEach(function(el) {
-          el.addEventListener('click', function() {
-            var target = d.getElementById(el.dataset.toggle);
-            if (target) target.style.display = target.style.display === 'none' ? '' : 'none';
-          });
-        });
-        // 操作按钮
-        d.getElementById('exportBtn').addEventListener('click', exportCard);
-        d.getElementById('importBtn').addEventListener('click', importCard);
-        d.getElementById('refreshBtn').addEventListener('click', function () { autoExtractFromChat(true); });
-        d.getElementById('clearBtn').addEventListener('click', clearCardData);
+      });
 
-        console.log('[时之写卡器] ✅ 工具条创建成功');
+      // 操作按钮
+      panel.querySelector('#exportBtn').addEventListener('click', exportCard);
+      panel.querySelector('#importBtn').addEventListener('click', triggerImport);
+      panel.querySelector('#refreshBtn').addEventListener('click', function () { autoExtractFromChat(true); });
+      panel.querySelector('#clearBtn').addEventListener('click', clearCardData);
 
-        // 启动监听
-        if (!_listenersRegistered) {
-          try {
-            registerChatListeners(function () { autoExtractFromChat(); });
-            _listenersRegistered = true;
-          } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
-        }
-        // 初始数据拉取
-        setTimeout(function () {
-          try { autoExtractFromChat(true); } catch(e) {}
-          try { updateBadge(); } catch(e) {}
-          try { renderPanel(); } catch(e) {}
-        }, 300);
-      } catch (e) {
-        console.error('[时之写卡器] onLoad 写入失败:', e);
-      }
-    });
-    parentDoc.body.appendChild(iframe);
-    console.log('[时之写卡器] iframe 已挂载');
+      makeDraggable();
 
-    // 兜底：load 事件可能不触发
-    setTimeout(function () {
-      if (!loaded) {
-        console.warn('[时之写卡器] load 未触发，强制写入');
+      console.log('[时之写卡器] ✅ 工具条创建成功（内联样式模式）');
+
+      // 启动监听
+      if (!_listenersRegistered) {
         try {
-          var d = iframe.contentDocument || iframe.contentWindow.document;
-          d.body.innerHTML = '<p style="padding:20px;color:#fff;">加载中...</p>';
-          loaded = true;
-        } catch(e) { console.error('[时之写卡器] 强制写入失败:', e); }
+          registerChatListeners(function () { autoExtractFromChat(); });
+          _listenersRegistered = true;
+          console.log('[时之写卡器] ✅ 聊天监听已注册');
+        } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
       }
-    }, 2000);
+
+      // 初始数据拉取
+      setTimeout(function () {
+        try { autoExtractFromChat(true); } catch(e) { console.warn('[时之写卡器] 初始数据拉取失败:', e); }
+        try { updateBadge(); } catch(e) {}
+        try { renderPanel(); } catch(e) { console.warn('[时之写卡器] 初始渲染失败:', e); }
+      }, 300);
+
+    } catch (e) {
+      console.error('[时之写卡器] createToolbar 异常:', e);
+      // 兜底：显示错误信息
+      try {
+        var errDiv = doc.createElement('div');
+        errDiv.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;padding:12px 20px;background:#da3633;color:#fff;border-radius:8px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+        errDiv.textContent = '时之写卡器加载失败: ' + e.message;
+        doc.body.appendChild(errDiv);
+      } catch(_) {}
+    }
   }
 
   // 从聊天消息中提取 ```json ... ``` 代码块
@@ -3320,16 +3330,20 @@
     mergePartial(src, _cardData);
   }
 
-  // 独立悬浮按钮（完全照搬原版 Card_making_tool.js 的 addFloatingButton，已验证可工作）
+  // 独立悬浮按钮（当 ST 按钮不可用时的 fallback）
   function addFloatingButton() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      var pDoc = parentDoc();
+      if (!pDoc || !pDoc.body) {
+        setTimeout(addFloatingButton, 500);
+        return false;
+      }
       var old = pDoc.getElementById(SCRIPT_ID + '-btn');
       if (old) old.remove();
       var btn = pDoc.createElement('button');
       btn.id = SCRIPT_ID + '-btn';
       btn.textContent = '⚡ 时之写卡器';
-      btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:all .3s;font-size:14px;';
+      btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:999998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:all .3s;font-size:14px;';
       btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
       btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
       btn.onclick = function() {
@@ -3338,7 +3352,7 @@
         else setExpanded(!_expanded);
       };
       pDoc.body.appendChild(btn);
-      console.log('[时之写卡器] ✅ 悬浮按钮已挂载到 parent.document.body');
+      console.log('[时之写卡器] ✅ 悬浮按钮已挂载');
       return true;
     } catch(e) {
       console.error('[时之写卡器] addFloatingButton 失败:', e);
@@ -3346,47 +3360,22 @@
     }
   }
 
-  // 兼容旧名
-  function addFallbackButton() { return addFloatingButton(); }
-
-  // ===== 初始化：主动注册 ST 按钮 + 监听点击 + 自动挂载工具条 =====
-  // 参考秋青子 index.js：调用 replaceScriptButtons 主动注册按钮
-  // 这样 ST 会显示「时之写卡器」按钮，点击后触发事件
-
+  // ===== ST 按钮注册（可选，用于在 ST 侧边栏显示按钮）=====
   function registerSTButton() {
     try {
-      // 1. 主动注册按钮（参考秋青子：replaceScriptButtons）
       var replaceBtns = typeof replaceScriptButtons === 'function' ? replaceScriptButtons
                       : (window.parent && typeof window.parent.replaceScriptButtons === 'function' ? window.parent.replaceScriptButtons : null);
       if (replaceBtns) {
         replaceBtns([{ name: BUTTON_NAME, visible: true }]);
-        console.log('[时之写卡器] replaceScriptButtons 已注册按钮:', BUTTON_NAME);
       }
-      // 2. 监听按钮点击事件（照搬原版的查找方式）
       var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
         evtOn(getBtnEvt(BUTTON_NAME), function () {
-          console.log('[时之写卡器] ✅ ST 按钮被点击！尝试创建工具条...');
-          try {
-            if (!_toolbar) {
-              console.log('[时之写卡器] createToolbar 被调用');
-              createToolbar();
-              console.log('[时之写卡器] createToolbar 返回，_toolbar=', !!_toolbar);
-              if (!_toolbar) {
-                // 如果工具条没创建成功，直接用原版方式打开全屏（确认按钮事件没问题）
-                console.warn('[时之写卡器] 工具条创建失败，尝试用原版方式打开全屏');
-                openEditorFallback();
-              }
-            } else {
-              setExpanded(!_expanded);
-            }
-          } catch(e) {
-            console.error('[时之写卡器] 按钮点击处理异常:', e);
-            openEditorFallback();
-          }
+          console.log('[时之写卡器] ST 按钮被点击');
+          if (!_toolbar) createToolbar();
+          else setExpanded(!_expanded);
         });
-        console.log('[时之写卡器] ✅ ST 按钮事件已注册');
         return true;
       }
     } catch (e) {
@@ -3395,51 +3384,20 @@
     return false;
   }
 
-  // 兜底：用原版 Card_making_tool.js 的 createModalIframe 方式打开全屏
-  function openEditorFallback() {
-    try {
-      var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
-      if (old) old.remove();
-      var iframe = parentDoc.createElement('iframe');
-      iframe.id = SCRIPT_ID + '-modal';
-      iframe.setAttribute('script_id', SCRIPT_ID);
-      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:99999;background:#0d1117;';
-      iframe.addEventListener('load', function() {
-        try {
-          var d = iframe.contentDocument || iframe.contentWindow.document;
-          d.body.style.background = '#0d1117';
-          d.body.style.color = '#c9d1d9';
-          d.body.style.fontFamily = '-apple-system,BlinkMacSystemFont,sans-serif';
-          d.body.style.padding = '40px';
-          d.body.innerHTML = '<h2 style="color:#d2a8ff;font-size:24px;">⚡ 时之写卡器</h2><p style="color:#8b949e;font-size:14px;">工具条创建遇到问题，但按钮事件正常工作。<br>请检查控制台 [时之写卡器] 日志获取详细错误。</p><button onclick="window.close()" style="padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:14px;margin-top:16px;">关闭</button>';
-          console.log('[时之写卡器] ✅ 兜底全屏已打开');
-        } catch(e) { console.error('[时之写卡器] 兜底全屏失败:', e); }
-      });
-      parentDoc.body.appendChild(iframe);
-      console.log('[时之写卡器] 兜底 iframe 已挂载');
-    } catch(e) { console.error('[时之写卡器] openEditorFallback 失败:', e); }
-  }
-
-  // 自动挂载工具条（无需点击按钮即可显示）
+  // ===== 初始化：简化版，直接尝试创建工具条 =====
   function autoMount() {
-    var doc = parentDoc();
-    if (!doc || !doc.body) {
-      console.log('[时之写卡器] document.body 未就绪，1秒后重试');
-      setTimeout(autoMount, 1000);
-      return;
-    }
-    if (doc.getElementById(SCRIPT_ID + '-toolbar')) {
-      console.log('[时之写卡器] 工具条已存在');
-      return;
-    }
-    console.log('[时之写卡器] 开始创建工具条');
+    console.log('[时之写卡器] autoMount 开始');
     try {
       createToolbar();
-      console.log('[时之写卡器] 工具条创建成功');
+      if (_toolbar) {
+        console.log('[时之写卡器] ✅ 工具条创建成功（autoMount）');
+      } else {
+        console.warn('[时之写卡器] 工具条未创建，重试中...');
+        setTimeout(autoMount, 1000);
+      }
     } catch (e) {
-      console.error('[时之写卡器] 工具条创建失败:', e);
-      addFloatingButton();
+      console.error('[时之写卡器] autoMount 异常:', e);
+      setTimeout(autoMount, 1000);
     }
   }
 
@@ -3449,38 +3407,44 @@
     removeToolbar();
   });
 
-  // ===== 启动策略（完全照搬原版 Card_making_tool.js 的 tryInit 模式）=====
-  // 原版逻辑：先尝试注册 ST 按钮，失败重试 10 次，最终 fallback 到悬浮按钮
-  // 这里加上：立即也尝试挂一次悬浮按钮（双保险，确保用户一定能看到入口）
+  // ===== 启动策略 =====
+  console.log('[时之写卡器] 📦 启动中...');
+
+  // 先尝试注册 ST 按钮
   var retryCount = 0;
   function tryInit() {
     if (registerSTButton()) {
       console.log('[时之写卡器] ✅ ST 按钮注册成功');
+      // ST 按钮注册成功后，自动创建工具条
+      setTimeout(autoMount, 500);
       return;
     }
-    if (retryCount < 10) {
+    if (retryCount < 20) {
       retryCount++;
-      setTimeout(tryInit, 500);
+      setTimeout(tryInit, 300);
     } else {
-      console.warn('[时之写卡器] ST 按钮注册失败 10 次，改用悬浮按钮');
-      addFloatingButton();
+      console.warn('[时之写卡器] ST 按钮注册失败，直接创建工具条');
+      autoMount();
     }
   }
 
-  // 立即开始注册 ST 按钮（原版模式）
+  // 立即开始
   tryInit();
 
-  // 同时立即尝试挂悬浮按钮（不等 ST 按钮，确保用户马上能看到入口）
-  // 如果 ST 按钮也注册成功了，悬浮按钮会被点击事件替代，两者并存不冲突
+  // 兜底：3秒后如果工具条还没创建，强制创建
   setTimeout(function() {
-    var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-    if (pDoc && pDoc.body && !pDoc.getElementById(SCRIPT_ID + '-btn') && !pDoc.getElementById(SCRIPT_ID + '-toolbar')) {
-      addFloatingButton();
+    if (!_toolbar) {
+      console.log('[时之写卡器] 兜底触发：强制创建工具条');
+      autoMount();
     }
-  }, 800);
+  }, 3000);
 
-  // 延迟自动挂载工具条（多重兜底，仅当悬浮按钮已存在时才尝试展开）
-  setTimeout(autoMount, 2000);
-  setTimeout(autoMount, 4000);
-  window.addEventListener('load', autoMount);
+  // 另一个兜底：如果脚本在 page 加载后才执行，确保创建
+  if (document.readyState === 'complete') {
+    setTimeout(autoMount, 100);
+  } else {
+    window.addEventListener('load', function() {
+      if (!_toolbar) autoMount();
+    });
+  }
 })();
