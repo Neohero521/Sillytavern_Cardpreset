@@ -111,361 +111,6 @@
     _eventStops = [];
   }
 
-  // ===== Iframe创建 =====
-  function createModalIframe() {
-    return new Promise(function(resolve, reject) {
-      try {
-        var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-        var old = parentDoc.getElementById(SCRIPT_ID + '-modal');
-        if (old) old.remove();
-        var iframe = parentDoc.createElement('iframe');
-        iframe.id = SCRIPT_ID + '-modal';
-        iframe.setAttribute('script_id', SCRIPT_ID);
-        // 和原始 Card_making_tool.js 一致：先全屏保证能显示
-        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#0d1117;';
-        iframe.addEventListener('load', function() {
-          try {
-            var d = iframe.contentDocument || iframe.contentWindow.document;
-            if (!d || !d.body || !d.head) { reject(new Error('iframe document invalid')); return; }
-            d.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
-            d.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
-            var s = d.createElement('style');
-            s.textContent = `
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;width:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;font-size:14px}
-
-/* ===== 悬浮按钮（折叠态） ===== */
-.fab{width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,#f78166,#d2a8ff);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;box-shadow:0 4px 16px rgba(247,129,102,.4);transition:transform .2s ease,box-shadow .2s ease}
-.fab:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(247,129,102,.5)}
-.fab:active{transform:scale(.95)}
-
-/* ===== 悬浮面板（展开态） ===== */
-.panel{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#0d1117;border-radius:14px}
-
-/* 面板头部（可拖拽） */
-.panel-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#161b22,#1c2230);border-bottom:1px solid #30363d;cursor:move;user-select:none;min-height:40px}
-.panel-header .ph-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
-.panel-header .ph-title{font-size:.85em;font-weight:700;background:linear-gradient(90deg,#f78166,#d2a8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.panel-header .ph-phase{font-size:.7em;color:#d2a8ff;background:rgba(210,168,255,.1);padding:2px 8px;border-radius:10px;flex-shrink:0}
-.panel-header .ph-controls{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.ph-btn{width:26px;height:26px;border-radius:6px;border:none;background:rgba(110,118,129,.15);color:#8b949e;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.ph-btn:hover{background:rgba(110,118,129,.3);color:#c9d1d9}
-.ph-btn.close:hover{background:rgba(248,81,73,.2);color:#f85149}
-
-/* Tab 导航 */
-.tab-bar{flex-shrink:0;display:flex;background:#161b22;border-bottom:1px solid #30363d;padding:0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tab-bar::-webkit-scrollbar{height:0}
-.tab-btn{flex:1;min-width:auto;padding:8px 6px;background:transparent;border:none;color:#8b949e;font-size:.75em;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .15s;font-weight:500;white-space:nowrap}
-.tab-btn:hover{color:#c9d1d9}
-.tab-btn.active{color:#f78166;border-bottom-color:#f78166;background:rgba(247,129,102,.06)}
-
-/* Tab 内容区 */
-.tab-content{flex:1;min-height:0;overflow:hidden;display:none;flex-direction:column}
-.tab-content.active{display:flex}
-.preset-section{margin-bottom:12px}
-.preset-section-title{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;margin-bottom:6px;font-size:.8em;color:#d2a8ff;font-weight:600}
-.preset-section-title .section-meta{font-size:.75em;color:#8b949e;font-weight:400}
-.preset-toggle-all{padding:3px 8px;background:rgba(110,118,129,.1);color:#8b949e;border:1px solid #30363d;border-radius:4px;cursor:pointer;font-size:10px;transition:all .2s}
-.preset-toggle-all:hover{background:rgba(210,168,255,.2);color:#d2a8ff;border-color:#d2a8ff}
-.preset-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#0d1117;border:1px solid #21262d;border-radius:5px;margin-bottom:4px;transition:all .2s}
-.preset-item:hover{border-color:#30363d}
-.preset-item.disabled{opacity:.5}
-.preset-item-name{font-size:.78em;color:#c9d1d9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.preset-switch{position:relative;display:inline-block;width:32px;height:18px;flex-shrink:0;margin-left:8px}
-.preset-switch input{opacity:0;width:0;height:0}
-.preset-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#30363d;transition:.3s;border-radius:18px}
-.preset-slider:before{position:absolute;content:"";height:14px;width:14px;left:2px;bottom:2px;background-color:#8b949e;transition:.3s;border-radius:50%}
-.preset-switch input:checked + .preset-slider{background-color:rgba(63,185,80,.3)}
-.preset-switch input:checked + .preset-slider:before{transform:translateX(14px);background-color:#3fb950}
-.preset-empty{padding:14px;text-align:center;color:#8b949e;font-size:.8em}
-.preset-hint{padding:8px 10px;background:rgba(210,168,255,.05);border:1px dashed #30363d;border-radius:5px;font-size:.72em;color:#8b949e;line-height:1.5;margin-bottom:8px}
-
-/* 对话区容器（tab内容） */
-.chat-tab{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1;position:relative}
-.chat-header{flex-shrink:0;padding:6px 12px;background:#161b22;border-bottom:1px solid #21262d;font-size:.78em;color:#d2a8ff;display:flex;align-items:center;gap:5px}
-.chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
-.chat-msg{display:flex;gap:8px;margin-bottom:12px;align-items:flex-start}
-.chat-msg.user{flex-direction:row-reverse}
-.chat-msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
-.chat-msg.assistant .avatar{background:rgba(210,168,255,.15)}
-.chat-msg.user .avatar{background:rgba(247,129,102,.15)}
-.chat-msg .bubble{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.85em;line-height:1.6;word-break:break-word}
-.chat-msg.assistant .bubble{background:#161b22;border:1px solid #30363d;border-bottom-left-radius:4px;color:#c9d1d9}
-.chat-msg.user .bubble{background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border-bottom-right-radius:4px}
-.chat-msg .bubble b{color:#d2a8ff}
-.chat-msg .bubble code{background:rgba(110,118,129,.2);padding:1px 4px;border-radius:3px;font-size:.82em}
-.chat-msg .bubble pre{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;overflow-x:auto;font-size:1em;margin:6px 0;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
-.typing{color:#8b949e;font-style:italic;font-size:.8em;padding:4px 8px}
-.typing span{display:inline-block;animation:blink 1.4s infinite;color:#f78166}
-.typing span:nth-child(2){animation-delay:.2s}
-.typing span:nth-child(3){animation-delay:.4s}
-@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
-.quick-actions{flex-shrink:0;display:flex;gap:4px;padding:6px 8px;flex-wrap:wrap;border-top:1px solid #21262d;background:#161b22;max-height:100px;overflow-y:auto}
-.quick-btn{padding:4px 8px;background:rgba(110,118,129,.08);color:#8b949e;border:1px solid #30363d;border-radius:5px;cursor:pointer;font-size:10.5px;transition:all .2s;white-space:nowrap;flex-shrink:0}
-.quick-btn:hover:not(:disabled){background:rgba(247,129,102,.2);color:#f78166;border-color:#f78166}
-.quick-btn.hl{border-color:#d2a8ff;color:#d2a8ff;background:rgba(210,168,255,.1)}
-.quick-btn.hl:hover:not(:disabled){background:rgba(247,129,102,.2);color:#f78166;border-color:#f78166}
-.quick-btn:disabled{opacity:.4;cursor:not-allowed}
-.chat-input-area{flex-shrink:0;padding:8px 10px 10px;border-top:1px solid #21262d;background:#161b22}
-.chat-input{width:100%;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:14px;resize:none;min-height:38px;max-height:90px;font-family:inherit;line-height:1.4}
-.chat-input:focus{outline:none;border-color:#f78166;box-shadow:0 0 0 2px rgba(247,129,102,.2)}
-.chat-input:disabled{opacity:.5}
-.chat-send-row{display:flex;gap:6px;margin-top:6px}
-.btn{padding:7px 14px;border:none;border-radius:6px;font-size:.8em;cursor:pointer;font-weight:600;transition:all .2s}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.btn-primary{background:linear-gradient(135deg,#f78166,#da6152);color:#fff}
-.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(247,129,102,.3)}
-.btn-success{background:linear-gradient(135deg,#3fb950,#2ea043);color:#fff}
-.btn-success:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(63,185,80,.3)}
-.btn-ghost{background:rgba(110,118,129,.1);color:#8b949e;border:1px solid #30363d}
-.btn-ghost:hover:not(:disabled){background:rgba(110,118,129,.2)}
-.btn-warn{background:linear-gradient(135deg,#d29922,#bb8009);color:#fff}
-.btn-warn:hover:not(:disabled){transform:translateY(-1px)}
-.preview-header{flex-shrink:0;padding:6px 12px;background:#161b22;border-bottom:1px solid #21262d;font-size:.78em;color:#d2a8ff;display:flex;justify-content:space-between;align-items:center}
-.preview-body{flex:1;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
-.pv-section{background:#161b22;border:1px solid #21262d;border-radius:6px;padding:8px 10px;margin-bottom:8px}
-.pv-section h3{font-size:.78em;color:#f78166;margin-bottom:5px;display:flex;align-items:center;gap:4px;justify-content:space-between}
-.pv-section h3 .sec-left{display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pv-section h3 .sec-right{font-size:.68em;color:#8b949e;font-weight:400;flex-shrink:0}
-.pv-section .pv-content{font-size:.75em;color:#8b949e;line-height:1.55;white-space:pre-wrap;max-height:120px;overflow:hidden;position:relative}
-.pv-section .pv-empty{color:#484f58;font-style:italic;font-size:.72em}
-.pv-section .pv-entry{background:#0d1117;padding:5px 8px;border-radius:4px;margin-bottom:4px;border-left:2px solid #d2a8ff}
-.pv-section .pv-entry-title{font-size:.72em;color:#d2a8ff;font-weight:600;margin-bottom:2px}
-.pv-section .pv-entry-content{font-size:.7em;color:#8b949e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pv-book-name{font-size:.72em;color:#d2a8ff;background:rgba(210,168,255,.1);padding:2px 6px;border-radius:4px;cursor:pointer;border:1px dashed transparent;transition:all .2s;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pv-book-name:hover{border-color:#d2a8ff}
-.dot{display:inline-block;width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.dot.full{background:#3fb950}
-.dot.empty{background:#484f58}
-.progress-bar{height:4px;background:#21262d;border-radius:2px;overflow:hidden;margin:4px 0}
-.progress-bar-fill{height:100%;background:linear-gradient(90deg,#f78166,#d2a8ff);transition:width .3s}
-.module-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}
-.module-item{font-size:.65em;padding:3px 5px;background:#0d1117;border-radius:3px;text-align:center}
-.module-item.done{color:#3fb950;border:1px solid rgba(63,185,80,.3)}
-.module-item.partial{color:#d29922;border:1px solid rgba(210,153,34,.3)}
-.module-item.todo{color:#484f58;border:1px solid #21262d}
-.close-btn{position:fixed;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(247,129,102,.15);border:1px solid #f78166;color:#f78166;font-size:1em;cursor:pointer;z-index:100000;display:flex;align-items:center;justify-content:center;transition:all .3s;flex-shrink:0}
-.close-btn:hover{background:#f78166;color:#fff;transform:rotate(90deg)}
-.json-modal,.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100001}
-.json-modal-content,.modal-content{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column}
-.json-modal-content textarea{width:100%;flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#3fb950;font-family:'Consolas',monospace;font-size:.75em;padding:8px;resize:none;min-height:250px}
-.modal-body{flex:1;overflow-y:auto;min-height:200px}
-.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;overflow:auto}
-.welcome h2{font-size:1.4em;background:linear-gradient(90deg,#f78166,#d2a8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px}
-.welcome p{color:#8b949e;font-size:.88em;line-height:1.8;max-width:460px;margin-bottom:20px}
-.welcome .start-btn{padding:12px 32px;background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border:none;border-radius:22px;font-size:.95em;font-weight:700;cursor:pointer;transition:all .3s}
-.welcome .start-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(247,129,102,.4)}
-.welcome-features{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:16px 0;max-width:460px}
-.wf-item{background:rgba(210,168,255,.08);border:1px solid rgba(210,168,255,.2);border-radius:8px;padding:10px;text-align:left}
-.wf-icon{font-size:1.3em;margin-bottom:4px}
-.wf-title{font-size:.8em;color:#d2a8ff;font-weight:600;margin-bottom:2px}
-.wf-desc{font-size:.68em;color:#8b949e;line-height:1.4}
-.qc-item{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:8px 10px;margin-bottom:6px}
-.qc-item.pass{border-color:rgba(63,185,80,.3)}
-.qc-item.fail{border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.05)}
-.qc-title{font-size:.78em;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:3px}
-.qc-pass{color:#3fb950}
-.qc-fail{color:#f85149}
-.qc-desc{font-size:.7em;color:#8b949e;line-height:1.5}
-.qc-fix{font-size:.68em;color:#d29922;margin-top:3px}
-.opt-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
-.opt-pane{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:.72em;line-height:1.5;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
-.opt-pane.before{border-color:#30363d}
-.opt-pane.after{border-color:rgba(63,185,80,.4)}
-.opt-label{font-size:.68em;font-weight:600;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #21262d}
-.opt-label.before{color:#8b949e}
-.opt-label.after{color:#3fb950}
-.opt-field-select{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
-.opt-field-tag{padding:3px 8px;background:rgba(110,118,129,.08);border:1px solid #30363d;border-radius:4px;font-size:.7em;cursor:pointer;transition:all .2s}
-.opt-field-tag.selected{background:rgba(247,129,102,.2);border-color:#f78166;color:#f78166}
-.modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px solid #21262d;flex-shrink:0}
-.sb-wrap{display:block;margin-top:8px;padding:10px;background:#0d1117;border-radius:6px;font-size:.78em;line-height:1.55;border:1px solid #30363d}
-.sb-wrap .sb-header{font-size:.85em;color:#facc15;margin-bottom:8px;font-weight:600;text-align:center}
-.sb-wrap .sb-section{margin-bottom:4px}
-.sb-wrap .sb-summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:.95em;padding:3px 0;user-select:none}
-.sb-wrap .sb-summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
-.sb-wrap .sb-section:not(.open) .sb-summary::before{transform:rotate(-90deg)}
-.sb-wrap .sb-content{padding:3px 0 3px 8px;color:#8b949e}
-.sb-wrap .sb-field{display:flex;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)}
-.sb-wrap .sb-field:last-child{border-bottom:none}
-.sb-wrap .sb-field-label{color:#d2a8ff;font-weight:600;flex-shrink:0}
-.sb-wrap .sb-field-value{color:#8b949e}
-.sb-wrap details{margin-bottom:6px}
-.sb-wrap summary{cursor:pointer;font-weight:600;color:#d2a8ff;font-size:.95em;padding:3px 0;list-style:none}
-.sb-wrap summary::-webkit-details-marker{display:none}
-.sb-wrap summary::before{content:'▼ ';font-size:.7em;margin-right:2px;transition:transform .2s;display:inline-block}
-.sb-wrap details[open] summary::before{transform:rotate(0deg)}
-.sb-wrap details:not([open]) summary::before{transform:rotate(-90deg)}
-.sb-wrap ul{margin:4px 0 4px 18px;padding:0}
-.sb-wrap ol{margin:4px 0 4px 20px;padding:0}
-.sb-wrap li{margin:2px 0;color:#8b949e;font-size:.92em;line-height:1.5}
-.sb-wrap li b{color:#c9d1d9}
-.sb-wrap p{margin:3px 0;color:#8b949e;font-size:.92em}
-.sb-wrap p b{color:#d2a8ff}
-.sb-wrap .sb-btn{display:inline-block;padding:4px 10px;margin:2px 3px;background:#21262d;border:1px solid #30363d;border-radius:12px;font-size:.88em;color:#c9d1d9;cursor:pointer;transition:all .15s}
-.sb-wrap .sb-btn:active{background:#f78166;color:#fff;border-color:#f78166}
-
-.mod-dash{display:block;margin:8px 0;background:#161b22;border:1px solid #21262d;border-radius:6px;overflow:hidden}
-.mod-dash .md-header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;font-size:.75em;color:#d2a8ff}
-.mod-dash .md-analyze-btn{font-size:.65em;padding:2px 6px;border-radius:3px;background:rgba(210,168,255,.1);border:1px solid rgba(210,168,255,.3);color:#d2a8ff;cursor:pointer;transition:all .15s;white-space:nowrap}
-.mod-dash .md-analyze-btn:hover{background:rgba(210,168,255,.2);border-color:rgba(210,168,255,.5)}
-.mod-dash .md-analyze-btn:active{background:rgba(210,168,255,.3)}
-.mod-dash .md-header .md-arrow{font-size:.65em;transition:transform .2s;color:#8b949e}
-.mod-dash.collapsed .md-header .md-arrow{transform:rotate(-90deg)}
-.mod-dash .md-body{padding:0 10px 8px;transition:max-height .3s ease;max-height:420px;overflow-y:auto}
-.mod-dash.collapsed .md-body{max-height:0;padding-top:0;padding-bottom:0}
-.mod-dash-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:.7em;cursor:pointer;padding:3px 5px;border-radius:4px;transition:background .15s}
-.mod-dash-item:hover{background:#0d1117}
-.mod-dash-item .m-icon{width:16px;text-align:center;flex-shrink:0}
-.mod-dash-item .m-name{width:52px;flex-shrink:0;color:#8b949e;font-size:.65em}
-.mod-dash-item .m-bar-wrap{flex:1;height:4px;background:#0d1117;border-radius:2px;overflow:hidden;display:block}
-.mod-dash-item .m-bar{height:100%;border-radius:2px;transition:width .4s ease;display:block}
-.mod-dash-item .m-bar.done{background:#3fb950}
-.mod-dash-item .m-bar.prog{background:#d2a8ff}
-.mod-dash-item .m-bar.empty{background:#21262d}
-.mod-dash-item .m-pct{width:28px;text-align:right;font-size:.6em;color:#8b949e;flex-shrink:0}
-
-.chat-input-char-count{font-size:.65em;color:#484f58;text-align:right;padding:2px 6px 0;transition:color .2s}
-.chat-input-char-count.warn{color:#d29922}
-.chat-input-char-count.over{color:#f85149}
-
-.send-btn-pulse{animation:pulse-send 2s infinite;box-shadow:0 0 8px rgba(247,129,102,.3)}
-@keyframes pulse-send{0%,100%{box-shadow:0 0 4px rgba(247,129,102,.2)}50%{box-shadow:0 0 12px rgba(247,129,102,.4),0 0 20px rgba(210,168,255,.2)}}
-
-.welcome-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center}
-.welcome-actions .btn{flex:1;min-width:120px;max-width:180px}
-
-.scroll-btns{position:absolute;right:12px;bottom:8px;display:flex;flex-direction:column;gap:3px;z-index:10;opacity:0;transition:opacity .2s;pointer-events:none}
-.scroll-btns.show{opacity:1;pointer-events:auto}
-.scroll-btns button{width:22px;height:22px;border-radius:50%;background:#21262d;border:1px solid #30363d;color:#8b949e;font-size:.65em;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
-.scroll-btns button:active{background:#f78166;color:#fff;border-color:#f78166}
-
-.import-dropzone{padding:20px;text-align:center;border:2px dashed #30363d;border-radius:8px;margin-bottom:10px;cursor:pointer;transition:all .2s}
-.import-dropzone:hover{border-color:#d2a8ff;background:rgba(210,168,255,.05)}
-.import-dropzone .dz-icon{font-size:2em;margin-bottom:6px}
-.import-dropzone .dz-text{font-size:.78em;color:#8b949e}
-.import-tabs{display:flex;gap:4px;margin-bottom:10px}
-.import-tab{flex:1;padding:6px 8px;background:#0d1117;border:1px solid #21262d;border-radius:6px;font-size:.72em;color:#8b949e;cursor:pointer;text-align:center;transition:all .15s}
-.import-tab.active{background:rgba(247,129,102,.15);border-color:#f78166;color:#f78166}
-
-.entry-detail{display:none;margin-top:6px;padding:8px;background:#0d1117;border-radius:4px;font-size:.68em}
-.entry-detail.open{display:block}
-.entry-detail .ext-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
-.entry-detail .ext-item{text-align:center}
-.entry-detail .ext-item label{display:block;color:#484f58;font-size:.6em;margin-bottom:2px}
-.entry-detail .ext-item input,.entry-detail .ext-item select{width:100%;padding:2px 3px;background:#161b22;border:1px solid #21262d;border-radius:3px;color:#c9d1d9;font-size:.65em;text-align:center;outline:none}
-.mod-focus{display:flex;flex-wrap:nowrap;gap:4px;padding:4px 8px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid #21262d;background:#161b22}
-.mod-focus::-webkit-scrollbar{height:0}
-.mod-focus-btn{padding:4px 10px;background:#0d1117;border:1px solid #30363d;border-radius:12px;font-size:.7em;color:#8b949e;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
-.mod-focus-btn:active,.mod-focus-btn.active{background:#f78166;color:#fff;border-color:#f78166}
-
-.wv-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
-.wv-stat{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:6px 8px;text-align:center}
-.wv-stat .wv-stat-val{font-size:1.1em;font-weight:700;display:block}
-.wv-stat .wv-stat-lbl{font-size:.62em;color:#8b949e;display:block;margin-top:2px}
-.wv-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;font-size:.65em}
-.wv-legend-item{display:flex;align-items:center;gap:3px;color:#8b949e}
-.wv-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-.wv-entry{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:6px 8px;margin-bottom:6px;border-left:3px solid #6e7681}
-.wv-entry-header{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
-.wv-entry-name{font-size:.78em;font-weight:600;color:#c9d1d9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wv-entry-level{font-size:.6em;padding:1px 6px;border-radius:3px;font-weight:600;white-space:nowrap}
-.wv-entry-token{font-size:.62em;color:#8b949e;flex-shrink:0}
-.wv-entry-meta{display:flex;flex-wrap:wrap;gap:4px;font-size:.6em;color:#8b949e}
-.wv-entry-meta .wv-tag{background:#161b22;border:1px solid #21262d;border-radius:3px;padding:1px 5px;white-space:nowrap}
-.wv-entry-meta .wv-tag.const{color:#3fb950;border-color:rgba(63,185,80,.3)}
-.wv-entry-meta .wv-tag.trig{color:#d2a8ff;border-color:rgba(210,168,255,.3)}
-.wv-entry-meta .wv-tag.dyn{color:#f78166;border-color:rgba(247,129,102,.3)}
-.wv-entry-meta .wv-tag.warn{color:#d29922;border-color:rgba(210,153,34,.3)}
-.wv-group-header{font-size:.7em;font-weight:600;color:#d2a8ff;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;align-items:center}
-.wv-group-count{font-size:.85em;color:#8b949e;font-weight:400}
-
-
-.group-mgr-list{margin:8px 0}
-.group-mgr-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#0d1117;border:1px solid #21262d;border-radius:5px;margin-bottom:4px;font-size:.72em}
-.group-mgr-item .gm-color{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.group-mgr-item .gm-name{flex:1;color:#c9d1d9;font-weight:600}
-.group-mgr-item .gm-count{color:#8b949e;font-size:.85em}
-.group-mgr-item .gm-toggle{padding:2px 8px;border-radius:3px;font-size:.85em;cursor:pointer;border:1px solid #30363d;background:#161b22;color:#8b949e}
-.group-mgr-item .gm-toggle.on{background:rgba(63,185,80,.15);color:#3fb950;border-color:rgba(63,185,80,.3)}
-
-/* 预览区容器 */
-.preview-tab{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1}
-
-/* 开关区容器 */
-.preset-tab{flex:1;overflow-y:auto;padding:10px 12px;-webkit-overflow-scrolling:touch}
-
-/* 导出区容器 */
-.export-tab{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-
-@media(max-width:520px){
-  .chat-msg .bubble{max-width:78%}
-  .opt-compare{grid-template-columns:1fr}
-  .quick-actions{max-height:70px}
-  .mod-focus-btn{font-size:.65em;padding:3px 8px}
-  .tab-btn{font-size:.68em;padding:6px 4px}
-  .welcome-features{grid-template-columns:1fr}
-}
-@media(max-height:500px){
-  .mod-focus{padding:4px 8px;gap:4px}
-  .mod-focus-btn{font-size:.7em;padding:3px 6px}
-  .chat-input-area{padding:6px 10px;gap:4px}
-  .chat-input{min-height:36px;padding:6px}
-  .quick-actions{gap:4px}
-  .quick-btn{font-size:.7em;padding:4px 8px}
-  .pv-section h3{font-size:.78em;margin-bottom:2px}
-  .pv-section{padding:6px 10px}
-  .pv-content{font-size:.72em;line-height:1.4}
-  .json-modal-content,.modal-content{padding:10px;max-height:90vh}
-  .modal-body{max-height:60vh}
-}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:#484f58}
-`;
-            d.head.appendChild(s);
-            resolve(d);
-          } catch (e) { reject(e); }
-        });
-        parentDoc.body.appendChild(iframe);
-        // 兜底：如果2秒load仍未触发（某些浏览器about:blank特殊行为），手动触发
-        setTimeout(function() {
-          try {
-            var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-            if (d && d.body && d.head && !d.getElementById(SCRIPT_ID + '-inited')) {
-              var marker = d.createElement('span');
-              marker.id = SCRIPT_ID + '-inited';
-              marker.style.display = 'none';
-              d.body.appendChild(marker);
-              d.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
-              d.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
-              var s2 = d.createElement('style');
-              s2.textContent = `
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;width:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;font-size:14px}
-.panel{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#0d1117}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:#484f58}
-`;
-              d.head.appendChild(s2);
-              resolve(d);
-            }
-          } catch(_) {}
-        }, 1500);
-      } catch (e) { reject(e); }
-    });
-  }
-
-  function closeModal() {
-    try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
-    cleanupChatListeners();
-  }
-
   // ===== 世界书名称生成 =====
   function genBookName(worldName) {
     if (!worldName || !worldName.trim()) return '世界设定集';
@@ -2965,2645 +2610,594 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     };
   }
 
-  // ===== 主界面 =====
-  async function openEditor() {
-    try {
-      var doc = await createModalIframe();
+  // ============================================================
+  //  悬浮工具条 UI（极简可展开 · 自动启动 · 实时监听 ST 聊天完善角色卡）
+  //  - 折叠态：右下角小圆形 FAB（带完成度徽标）
+  //  - 展开态：可拖拽面板（状态条 + 角色卡预览 + 预设开关 + 操作按钮）
+  //  - 聊天直接在 SillyTavern 里进行，工具条后台自动提取 AI 消息中的角色卡 JSON
+  // ============================================================
+  var _toolbar = null;            // {container, fab, badge, panel}
+  var _cardData = null;           // 角色卡数据
+  var _chatMsgCount = 0;          // 已监听消息数
+  var _autoSync = true;           // 自动同步开关
+  var _expanded = false;          // 展开/折叠状态
+  var _lastProcessedMsgId = -1;   // 已处理的最大消息ID（去重用）
+  var _listenersRegistered = false;
+  var _presetPromptToggle = null; // 预设开关函数引用
 
-      var cardData = {
-        name: '', description: '', personality: '', scenario: '',
-        first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
-        post_history_instructions: '', tags: [], creator: '时之写卡器',
-        character_version: '', alternate_greetings: [], group_only_greetings: [],
-        extensions: {
-          talkativeness: '0.5',
-          fav: false,
-          world: '',
-          depth_prompt: { prompt: '', depth: 4, role: 'system' },
-          regex_scripts: [],
-          'xiaobaix-template': {
-            enabled: false,
-            template: '',
-            customRegex: '',
-            disableParsers: false,
-            skipFirstMessage: false,
-            recentMessageCount: 0,
-            limitToRecentMessages: false
-          },
-          tavern_helper: { scripts: [], variables: {} }
+  var BUTTON_NAME = '时之写卡器';
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function parentDoc() {
+    try { return (window.parent && window.parent.document) ? window.parent.document : document; }
+    catch (_) { return document; }
+  }
+
+  function parentWin(name) {
+    try { if (window.parent && window.parent[name]) return window.parent[name]; } catch (_) {}
+    return window[name];
+  }
+
+  function initCardData() {
+    _cardData = {
+      name: '', description: '', personality: '', scenario: '',
+      first_mes: '', mes_example: '', creator_notes: '', system_prompt: '',
+      post_history_instructions: '', tags: [], creator: '时之写卡器',
+      character_version: '', alternate_greetings: [], group_only_greetings: [],
+      extensions: {
+        talkativeness: '0.5',
+        fav: false,
+        world: '',
+        depth_prompt: { prompt: '', depth: 4, role: 'system' },
+        regex_scripts: [],
+        'xiaobaix-template': {
+          enabled: false, template: '', customRegex: '',
+          disableParsers: false, skipFirstMessage: false,
+          recentMessageCount: 0, limitToRecentMessages: false
         },
-        character_book: { entries: [] }
-      };
-
-      var messages = [];
-      var isGenerating = false;
-      var cardGenerated = false;
-      var progress = 0;
-      var moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
-
-      function getIframe() {
-        try {
-          if (window.frameElement) return window.frameElement;
-          var pDoc = (window.parent && window.parent.document) ? window.parent.document : null;
-          if (pDoc) {
-            var el = pDoc.getElementById(SCRIPT_ID + '-modal');
-            if (el) return el;
-          }
-        } catch(e) {}
-        return null;
-      }
-
-      // 全屏模式：expand/collapse 都是 no-op（先全屏测通）
-      function expandPanel() {}
-      function collapsePanel() {}
-
-      function showFab() {
-        // 全屏模式下关闭=移除iframe，最小化时直接关闭即可
-        closeModal();
-      }
-
-      function switchTab(tabName) {
-        var tabs = doc.querySelectorAll('.tab-btn');
-        var contents = doc.querySelectorAll('.tab-content');
-        for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tabName);
-        for (var j = 0; j < contents.length; j++) contents[j].classList.toggle('active', contents[j].getAttribute('data-tab') === tabName);
-        if (tabName === 'preset') { var pp = doc.getElementById('presetPanel'); if (pp && pp.children.length === 0) renderPresetPanel(); }
-      }
-
-      function initDrag() { /* 全屏模式无需拖拽 */ }
-
-      function renderWelcome() {
-        expandPanel();
-        // 同步当前角色卡和聊天记录
-        var charName = fetchCurrentCharName();
-        var chatMsgs = fetchChatMessages();
-        var hasChat = chatMsgs.length > 0;
-        var preset = fetchPreset();
-        var presetLoaded = preset && preset.prompts && preset.prompts.length > 0;
-
-        doc.body.innerHTML =
-          '<div class="panel">' +
-            '<div class="panel-header" id="panelHeader">' +
-              '<div class="ph-left"><span class="ph-title">⚡ 时之写卡器</span>' +
-                (charName ? '<span class="ph-phase">👤 ' + escHtml(charName) + '</span>' : '') +
-              '</div>' +
-              '<div class="ph-controls">' +
-                '<button class="ph-btn" id="minimizeBtn" title="最小化">−</button>' +
-                '<button class="ph-btn close" id="closeBtn" title="关闭">×</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="welcome" style="overflow-y:auto">' +
-              '<h2>⚡ 时之写卡器</h2>' +
-              '<p>基于SillyTavern原生机制与ST权重分层8体系，通过AI对话逐步引导你创建专业级世界模式角色卡。<br>和AI聊天就能生成符合ST规范的角色卡！</p>' +
-
-              // 当前角色卡状态
-              '<div style="background:' + (charName ? 'rgba(63,185,80,.08)' : 'rgba(248,81,73,.08)') + ';border:1px solid ' + (charName ? 'rgba(63,185,80,.3)' : 'rgba(248,81,73,.3)') + ';border-radius:8px;padding:10px 14px;margin:12px 0;text-align:left">' +
-                '<div style="font-size:.82em;color:' + (charName ? '#3fb950' : '#f85149') + ';font-weight:600;margin-bottom:4px">' +
-                  (charName ? '✅ 当前角色：' + escHtml(charName) : '⚠️ 未选择角色卡') +
-                '</div>' +
-                '<div style="font-size:.72em;color:#8b949e">' +
-                  (presetLoaded ? '✅ 预设已加载（' + preset.prompts.length + '条）' : '⚠️ 预设未加载') +
-                  ' · 聊天记录：' + chatMsgs.length + '条' +
-                '</div>' +
-              '</div>' +
-
-              // 如果有聊天记录，显示同步预览
-              (hasChat ? '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;margin:10px 0;max-height:200px;overflow-y:auto;text-align:left">' +
-                '<div style="font-size:.78em;color:#d2a8ff;font-weight:600;margin-bottom:6px">💬 已同步聊天记录（最近' + chatMsgs.length + '条）</div>' +
-                chatMsgs.slice(-5).map(function(m) {
-                  var isUser = m.role === 'user';
-                  return '<div style="margin-bottom:6px;padding:6px 8px;border-radius:6px;background:' + (isUser ? 'rgba(247,129,102,.08)' : 'rgba(210,168,255,.06)') + ';font-size:.72em">' +
-                    '<span style="color:' + (isUser ? '#f78166' : '#d2a8ff') + ';font-weight:600">' + (isUser ? '用户' : (m.name || 'AI')) + '：</span>' +
-                    '<span style="color:#8b949e">' + escHtml((m.content || '').substring(0, 120)) + (m.content && m.content.length > 120 ? '...' : '') + '</span>' +
-                  '</div>';
-                }).join('') +
-              '</div>' : '') +
-
-              '<div class="welcome-features">' +
-                '<div class="wf-item"><div class="wf-icon">💬</div><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">📊</div><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">32项质检</div><div class="wf-desc">8基础+4高价值+6世界书+8世界书高级+6正则+3运行效果+6附加，专业达标</div></div>' +
-                '<div class="wf-item"><div class="wf-icon">🔧</div><div class="wf-title">AI优化</div><div class="wf-desc">质检未达标项一键AI优化，字段级对比</div></div>' +
-              '</div>' +
-              '<button class="start-btn" id="startBtn">' + (hasChat ? '继续创作' : '开始创作') + '</button>' +
-              '<div class="welcome-actions">' +
-                '<button class="btn btn-ghost" id="importBtn">📥 导入现有卡</button>' +
-                (hasChat ? '<button class="btn btn-ghost" id="syncChatBtn">🔄 同步聊天记录</button>' : '') +
-                '<button class="btn btn-ghost" id="continueBtn" style="display:none">📂 继续上次</button>' +
-              '</div>' +
-              '<p style="font-size:.7em;color:#484f58;margin-top:16px">ST权重分层8体系：🏛️基础公理 → 🤝交互软规则 → 🔐核心铁则 → 🎯近场强约束 → ⚔️场景机制 → 👥实体交互 → 📖叙事背景 → 🔄动态适配</p>' +
-              '<p style="font-size:.65em;color:#484f58;margin-top:6px">引导流程：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配</p>' +
-            '</div>' +
-          '</div>';
-        doc.getElementById('closeBtn').addEventListener('click', closeModal);
-        doc.getElementById('minimizeBtn').addEventListener('click', showFab);
-        doc.getElementById('startBtn').addEventListener('click', function() {
-          renderChatUI();
-          // 如果有聊天记录，同步到对话区
-          if (hasChat) {
-            chatMsgs.forEach(function(m) {
-              if (m.role === 'user') addUserMsg(m.content);
-              else addAssistantMsg(m.content);
-            });
-            addAssistantMsg('已同步当前角色卡「' + charName + '」的聊天记录（' + chatMsgs.length + '条）。\n\n你可以基于这些内容继续创作，或直接告诉我下一步想做什么。');
-          } else {
-            addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
-          }
-        });
-        doc.getElementById('importBtn').addEventListener('click', showImportModal);
-        var syncBtn = doc.getElementById('syncChatBtn');
-        if (syncBtn) syncBtn.addEventListener('click', function() { renderWelcome(); });
-        var contBtn = doc.getElementById('continueBtn');
-        if (contBtn && hasSavedData()) {
-          contBtn.style.display = 'inline-block';
-          contBtn.addEventListener('click', continueFromSave);
-        }
-        initDrag();
-      }
-
-      function escHtml(s) {
-        if (!s) return '';
-        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-      }
-
-      function renderChatUI() {
-        expandPanel();
-        doc.body.innerHTML =
-          '<div class="panel">' +
-            '<div class="panel-header" id="panelHeader">' +
-              '<div class="ph-left">' +
-                '<span class="ph-title">⚡ 时之写卡器</span>' +
-                '<span class="ph-phase" id="phaseLabel">0%</span>' +
-              '</div>' +
-              '<div class="ph-controls">' +
-                '<button class="ph-btn" id="minimizeBtn" title="最小化">−</button>' +
-                '<button class="ph-btn close" id="closeBtn" title="关闭">×</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="tab-bar">' +
-              '<button class="tab-btn active" data-tab="chat">💬 对话</button>' +
-              '<button class="tab-btn" data-tab="preview">📋 预览</button>' +
-              '<button class="tab-btn" data-tab="preset">⚙️ 开关</button>' +
-              '<button class="tab-btn" data-tab="export">💾 导出</button>' +
-            '</div>' +
-            '<div class="tab-content active" data-tab="chat">' +
-              '<div class="chat-tab">' +
-                '<div class="chat-header">💬 AI对话创作 <span style="color:#484f58;font-size:10px">Enter发送</span></div>' +
-                '<div class="mod-focus" id="modFocus">' +
-                  '<button class="mod-focus-btn" data-mod="axiom">🏛️ 基础公理</button>' +
-                  '<button class="mod-focus-btn" data-mod="soft_rules">🤝 交互软规则</button>' +
-                  '<button class="mod-focus-btn" data-mod="core_rules">🔐 核心铁则</button>' +
-                  '<button class="mod-focus-btn" data-mod="near_constraint">🎯 近场强约束</button>' +
-                  '<button class="mod-focus-btn" data-mod="scene_mechanics">⚔️ 场景机制</button>' +
-                  '<button class="mod-focus-btn" data-mod="entity_interact">👥 实体交互</button>' +
-                  '<button class="mod-focus-btn" data-mod="narrative_bg">📖 叙事背景</button>' +
-                  '<button class="mod-focus-btn" data-mod="dynamic_adapt">🔄 动态适配</button>' +
-                  '<button class="mod-focus-btn" data-mod="init_var">📊 初始变量</button>' +
-                  '<button class="mod-focus-btn" data-mod="var_update_rule">📝 变量更新规则</button>' +
-                '</div>' +
-                '<div class="mod-dash" id="modDash" style="margin:0;border-left:none;border-right:none;border-radius:0">' +
-                  '<div class="md-header" id="modDashHeader"><span>📊 模块进度仪表盘</span><span class="md-arrow">▼</span></div>' +
-                  '<div class="md-body"></div>' +
-                '</div>' +
-                '<div class="chat-messages" id="chatMessages"></div>' +
-                '<div class="scroll-btns" id="scrollBtns"><button id="scrollBottomBtn" title="到底部">↓</button></div>' +
-                '<div class="quick-actions" id="quickActions"></div>' +
-                '<div class="chat-input-area">' +
-                  '<textarea class="chat-input" id="chatInput" placeholder="描述你想要的世界..." rows="1"></textarea>' +
-                  '<div class="chat-input-char-count" id="charCount">0 / 2000</div>' +
-                  '<div class="chat-send-row">' +
-                    '<button class="btn btn-primary" id="sendBtn" style="flex:1">发送</button>' +
-                  '</div>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="tab-content" data-tab="preview">' +
-              '<div class="preview-tab">' +
-                '<div class="preview-header">' +
-                  '<span>📋 预览</span>' +
-                  '<span id="completionLabel" style="font-size:.72em;color:#3fb950">0%</span>' +
-                '</div>' +
-                '<div class="preview-body" id="previewBody"></div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="tab-content" data-tab="preset">' +
-              '<div class="preset-tab" id="presetPanel"></div>' +
-            '</div>' +
-            '<div class="tab-content" data-tab="export">' +
-              '<div class="export-tab">' +
-                '<button class="btn btn-success" id="saveBtn" style="width:100%;padding:10px;font-size:.9em">💾 导出角色卡</button>' +
-                '<button class="btn btn-warn" id="clearChatBtn" style="width:100%;padding:10px;font-size:.9em">🗑️ 清空对话记录</button>' +
-                '<div class="preset-hint" style="margin-top:8px">💡 导出后可在弹窗中复制JSON或直接下载文件。支持V2/V3/Lorebook格式。</div>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
-        bindEvents();
-        updateModFocus();
-        updateQuickActions();
-        renderPreview();
-        renderModDash();
-        updateCharCount();
-        try { getPresetPrompts(true); } catch(_) {}
-        initDrag();
-      }
-
-      function renderPresetPanel() {
-        var panel = doc.getElementById('presetPanel');
-        if (!panel) return;
-        var prompts = getPresetPrompts(true);
-        if (prompts.length === 0) {
-          panel.innerHTML = '<div class="preset-empty">⚠️ 未检测到预设提示词<br><br>请确认已在 SillyTavern 中加载 <b>Card_making_preset.json</b> 预设，并将其设为正在使用。</div>';
-          return;
-        }
-        // 按区段分组显示：aux → worldinfo → general → mvu
-        var sectionOrder = ['aux', 'worldinfo', 'general', 'mvu'];
-        var sections = {};
-        var secEnabledCount = {};
-        for (var s = 0; s < sectionOrder.length; s++) {
-          sections[sectionOrder[s]] = prompts.filter(function(p) { return p.section === sectionOrder[s]; });
-          secEnabledCount[sectionOrder[s]] = sections[sectionOrder[s]].filter(function(p) { return p.enabled; }).length;
-        }
-
-        var html = '<div class="preset-hint">💡 此处开关直接同步到 SillyTavern 预设（in_use）。禁用的提示词不会发送给AI。MVU区段默认关闭，按需启用；辅助项一般不用改。</div>';
-
-        for (var k = 0; k < sectionOrder.length; k++) {
-          var sec = sectionOrder[k];
-          var list = sections[sec];
-          if (!list || list.length === 0) continue;
-          var label = (SECTION_LABELS && SECTION_LABELS[sec]) ? SECTION_LABELS[sec] : sec;
-          var enCnt = secEnabledCount[sec];
-          html += '<div class="preset-section">';
-          html += '<div class="preset-section-title">';
-          html += '<span>' + label + ' <span class="section-meta">(' + enCnt + '/' + list.length + ' 已启用)</span></span>';
-          html += '<button class="preset-toggle-all" data-section="' + sec + '" data-action="all">全选/全不选</button>';
-          html += '</div>';
-          for (var j = 0; j < list.length; j++) {
-            html += renderPresetItem(list[j]);
-          }
-          html += '</div>';
-        }
-
-        panel.innerHTML = html;
-
-        // Bind toggle switches
-        var switches = panel.querySelectorAll('.preset-switch input');
-        switches.forEach(function(sw) {
-          sw.addEventListener('change', async function() {
-            var name = this.getAttribute('data-name');
-            var ok = await togglePresetPrompt(name);
-            if (ok) {
-              var item = this.closest('.preset-item');
-              if (item) {
-                if (this.checked) item.classList.remove('disabled');
-                else item.classList.add('disabled');
-              }
-              setTimeout(renderPresetPanel, 100);
-              showToast('已切换: ' + name, 'success');
-            } else {
-              this.checked = !this.checked;
-            }
-          });
-        });
-
-        // Bind section toggle-all buttons
-        var allBtns = panel.querySelectorAll('.preset-toggle-all');
-        allBtns.forEach(function(btn) {
-          btn.addEventListener('click', async function() {
-            var secName = this.getAttribute('data-section');
-            var secList = prompts.filter(function(pp) { return pp.section === secName; });
-            var anyEnabled = secList.some(function(pp) { return pp.enabled; });
-            var targetState = !anyEnabled;
-            var ok = await togglePresetSection(secName, targetState);
-            if (ok) {
-              setTimeout(renderPresetPanel, 100);
-              var labelText = (SECTION_LABELS && SECTION_LABELS[secName]) ? SECTION_LABELS[secName] : secName;
-              showToast(labelText + ' 已' + (targetState ? '全部启用' : '全部禁用'), 'success');
-            }
-          });
-        });
-      }
-
-      function renderPresetItem(p) {
-        var checkedAttr = p.enabled ? 'checked' : '';
-        var disabledClass = p.enabled ? '' : 'disabled';
-        var roleTag = p.role === 'assistant' ? '<span style="color:#3fb950;font-size:9px;margin-left:4px">[A]</span>' :
-                      p.role === 'user' ? '<span style="color:#f78166;font-size:9px;margin-left:4px">[U]</span>' : '';
-        return '<div class="preset-item ' + disabledClass + '">' +
-          '<div class="preset-item-name">' + p.displayName + roleTag + '</div>' +
-          '<label class="preset-switch">' +
-            '<input type="checkbox" ' + checkedAttr + ' data-name="' + p.name.replace(/"/g, '&quot;') + '">' +
-            '<span class="preset-slider"></span>' +
-          '</label>' +
-        '</div>';
-      }
-
-      function bindEvents() {
-        doc.getElementById('closeBtn').addEventListener('click', closeModal);
-        var minBtn = doc.getElementById('minimizeBtn');
-        if (minBtn) minBtn.addEventListener('click', showFab);
-        var input = doc.getElementById('chatInput');
-        var sendBtn = doc.getElementById('sendBtn');
-        sendBtn.addEventListener('click', handleSend);
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-        });
-        input.addEventListener('input', function() {
-          updateCharCount();
-          updateSendBtnPulse();
-        });
-        var saveBtnEl = doc.getElementById('saveBtn');
-        if (saveBtnEl) saveBtnEl.addEventListener('click', saveCharacter);
-        var clearChatBtn = doc.getElementById('clearChatBtn');
-        if (clearChatBtn) {
-          clearChatBtn.addEventListener('click', function() {
-            if (isGenerating) { showToast('⚠️ AI正在生成中，请稍后再清除', 'warning'); return; }
-            if (messages.length === 0) { showToast('对话已经是空的', 'info'); return; }
-            if (!confirm('确定清空所有对话记录吗？\n\n✅ 角色卡内容不会被影响，仍会保留\n✅ 只清除聊天对话历史')) return;
-            messages = [];
-            var chatC = doc.getElementById('chatMessages');
-            if (chatC) chatC.innerHTML = '';
-            saveToStorage();
-            showToast('✅ 对话已清空（角色卡内容不受影响）', 'success');
-          });
-        }
-        var qBtns = doc.querySelectorAll('.quick-btn');
-        for (var i = 0; i < qBtns.length; i++) {
-          qBtns[i].addEventListener('click', function() {
-            var action = this.getAttribute('data-action');
-            handleQuickAction(action);
-          });
-        }
-        var modBtns = doc.querySelectorAll('.mod-focus-btn');
-        for (var j = 0; j < modBtns.length; j++) {
-          modBtns[j].addEventListener('click', function() {
-            var mod = this.getAttribute('data-mod');
-            handleModFocus(mod);
-          });
-        }
-        var sbBtn = doc.getElementById('scrollBottomBtn');
-        if (sbBtn) {
-          sbBtn.addEventListener('click', scrollChat);
-        }
-        var cm = doc.getElementById('chatMessages');
-        if (cm) {
-          cm.addEventListener('scroll', function() {
-            var btns = doc.getElementById('scrollBtns');
-            if (btns) {
-              if (cm.scrollTop < cm.scrollHeight - cm.clientHeight - 100) {
-                btns.classList.add('show');
-              } else {
-                btns.classList.remove('show');
-              }
-            }
-          });
-        }
-        var tabBtns = doc.querySelectorAll('.tab-btn');
-        for (var ti = 0; ti < tabBtns.length; ti++) {
-          tabBtns[ti].addEventListener('click', function() {
-            switchTab(this.getAttribute('data-tab'));
-          });
-        }
-      }
-
-      function updateCharCount() {
-        var input = doc.getElementById('chatInput');
-        var cnt = doc.getElementById('charCount');
-        if (!input || !cnt) return;
-        var len = input.value.length;
-        cnt.textContent = len + ' / 2000';
-        cnt.className = 'chat-input-char-count';
-        if (len > 1500) cnt.classList.add('warn');
-        if (len > 1900) cnt.classList.add('over');
-      }
-
-      function updateSendBtnPulse() {
-        var input = doc.getElementById('chatInput');
-        var btn = doc.getElementById('sendBtn');
-        if (!input || !btn) return;
-        var hasContent = input.value.trim().length > 0;
-        btn.classList.toggle('send-btn-pulse', hasContent && !btn.disabled);
-      }
-
-      // ===== 导入模态框 =====
-      function showImportModal() {
-        var h = '<div class="modal" id="importModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">📥 导入角色卡</h3>' +
-            '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">导入现有角色卡继续编辑，支持chara_card_v2/v3格式</p>' +
-            '<div class="import-tabs">' +
-              '<div class="import-tab active" data-tab="paste">📋 粘贴JSON</div>' +
-              '<div class="import-tab" data-tab="file">📁 选择文件</div>' +
-            '</div>' +
-            '<div id="importTabPaste">' +
-              '<textarea class="chat-input" id="importTextarea" placeholder="在此粘贴角色卡JSON..." rows="8" style="min-height:120px;font-family:Consolas,monospace;font-size:.75em"></textarea>' +
-            '</div>' +
-            '<div id="importTabFile" style="display:none">' +
-              '<div class="import-dropzone" id="importDropzone">' +
-                '<div class="dz-icon">📁</div>' +
-                '<div class="dz-text">点击选择文件或拖拽JSON文件到此处</div>' +
-                '<input type="file" id="importFile" accept=".json,application/json" style="display:none">' +
-              '</div>' +
-              '<div id="importFileInfo" style="font-size:.72em;color:#8b949e;text-align:center;display:none"></div>' +
-            '</div>' +
-            '<div class="modal-actions">' +
-              '<button class="btn btn-ghost" id="importCloseBtn">取消</button>' +
-              '<button class="btn btn-primary" id="importConfirmBtn">✅ 导入并开始</button>' +
-            '</div>' +
-          '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
-        doc.body.appendChild(modalEl);
-        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
-        doc.getElementById('importCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-
-        var tabs = modalEl.querySelectorAll('.import-tab');
-        tabs.forEach(function(t) {
-          t.addEventListener('click', function() {
-            tabs.forEach(function(x) { x.classList.remove('active'); });
-            t.classList.add('active');
-            var tab = t.getAttribute('data-tab');
-            doc.getElementById('importTabPaste').style.display = tab === 'paste' ? 'block' : 'none';
-            doc.getElementById('importTabFile').style.display = tab === 'file' ? 'block' : 'none';
-          });
-        });
-
-        var dz = doc.getElementById('importDropzone');
-        var fileInput = doc.getElementById('importFile');
-        if (dz && fileInput) {
-          dz.addEventListener('click', function() { fileInput.click(); });
-          fileInput.addEventListener('change', function(e) {
-            var file = e.target.files && e.target.files[0];
-            if (file) handleImportFile(file);
-          });
-        }
-
-        doc.getElementById('importConfirmBtn').addEventListener('click', function() {
-          var text = doc.getElementById('importTextarea').value.trim();
-          if (!text) { showToast('请粘贴JSON内容或选择文件', 'warning'); return; }
-          try {
-            var data = JSON.parse(text);
-            importCardData(data);
-            modalEl.remove();
-          } catch(e) { showToast('JSON解析失败: ' + e.message, 'error'); }
-        });
-      }
-
-      function handleImportFile(file) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            var data = JSON.parse(e.target.result);
-            var info = doc.getElementById('importFileInfo');
-            if (info) {
-              info.style.display = 'block';
-              var name = (data.data && data.data.name) || data.name || '未知';
-              info.textContent = '✅ 已加载: ' + name + ' (' + file.name + ')';
-            }
-            doc.getElementById('importTextarea').value = e.target.result;
-          } catch(err) {
-            showToast('文件解析失败: ' + err.message, 'error');
-          }
-        };
-        reader.readAsText(file);
-      }
-
-      function importCardData(data) {
-        var rawData = data;
-        var cd = data.data || data;
-        if (!cd || typeof cd !== 'object') { showToast('无效的角色卡格式', 'error'); return; }
-
-        cardData.name = cd.name || '';
-        cardData.description = cd.description || '';
-        cardData.personality = cd.personality || '';
-        cardData.scenario = cd.scenario || '';
-        cardData.first_mes = cd.first_mes || '';
-        cardData.mes_example = cd.mes_example || '';
-        cardData.creator_notes = cd.creator_notes || (rawData.creatorcomment !== undefined ? rawData.creatorcomment : '');
-        cardData.system_prompt = cd.system_prompt || '';
-        cardData.post_history_instructions = cd.post_history_instructions || '';
-        cardData.tags = cd.tags || [];
-        cardData.creator = cd.creator || '时之写卡器';
-        cardData.character_version = cd.character_version !== undefined ? cd.character_version : '';
-        cardData.alternate_greetings = cd.alternate_greetings || [];
-        cardData.extensions = {
-          talkativeness: '0.5',
-          fav: false,
-          world: cd.extensions && cd.extensions.world ? cd.extensions.world : '',
-          depth_prompt: cd.extensions && cd.extensions.depth_prompt ? cd.extensions.depth_prompt : { prompt: '', depth: 0, role: 'system' },
-          regex_scripts: normalizeRegexScripts(cd.extensions && cd.extensions.regex_scripts),
-          'xiaobaix-template': cd.extensions && cd.extensions['xiaobaix-template'] ? cd.extensions['xiaobaix-template'] : {
-            enabled: false,
-            template: '',
-            customRegex: '',
-            disableParsers: false,
-            skipFirstMessage: false,
-            recentMessageCount: 0,
-            limitToRecentMessages: false
-          },
-          tavern_helper: (cd.extensions && cd.extensions.tavern_helper)
-            ? { scripts: (cd.extensions.tavern_helper.scripts || []), variables: (cd.extensions.tavern_helper.variables || {}) }
-            : { scripts: [], variables: {} }
-        };
-        cardData.group_only_greetings = cd.group_only_greetings || [];
-
-        // 导入时无论原卡是否含 character_book 都重置，避免残留旧卡条目
-        cardData.character_book = { entries: [] };
-        if (cd.character_book) {
-          cardData.character_book = {
-            entries: (cd.character_book.entries || []).map(function(e, i) {
-              // 通过模板获取默认值（支持 MVU [InitVar] 等前缀）
-              var comment = e.comment || '';
-              var tmpl = getEntryTemplate(comment);
-              var defaultPos = tmpl ? tmpl.position : 4;
-              var defaultDepth = tmpl ? tmpl.depth : 4;
-              var defaultOrder = tmpl ? tmpl.order : 100;
-              var defaultEnabled = tmpl && tmpl.enabled !== undefined ? tmpl.enabled : true;
-              // [InitVar] 条目必须 enabled=false（MVU 只读取禁用的 initvar 条目进行初始化）
-              var isInitVar = comment.indexOf('[InitVar]') >= 0;
-              var isVarList = comment.indexOf('变量列表') >= 0;
-              var enabledVal = isInitVar ? false : (e.enabled !== undefined ? e.enabled : defaultEnabled);
-              var ext = e.extensions || {};
-              return {
-                comment: comment,
-                content: isVarList ? normalizeVarListContent(e.content || '') : (e.content || ''),
-                keys: e.keys || [],
-                secondary_keys: e.secondary_keys || (tmpl && tmpl.secondary_keys) || [],
-                constant: e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false),
-                selective: e.selective !== undefined ? e.selective : (tmpl ? tmpl.selective : true),
-                insertion_order: e.insertion_order || defaultOrder,
-                enabled: enabledVal,
-                use_regex: e.use_regex !== undefined ? e.use_regex : true,
-                position: ext.position !== undefined ? ext.position : defaultPos,
-                extensions: {
-                  position: ext.position !== undefined ? ext.position : defaultPos,
-                  depth: ext.depth !== undefined ? ext.depth : defaultDepth,
-                  role: ext.role !== undefined ? ext.role : 0,
-                  probability: ext.probability !== undefined ? ext.probability : (tmpl ? tmpl.probability : 100),
-                  useProbability: ext.useProbability !== undefined ? ext.useProbability : (ext.use_probability !== undefined ? ext.use_probability : (tmpl ? tmpl.useProbability : false)),
-                  selectiveLogic: ext.selectiveLogic !== undefined ? ext.selectiveLogic : (tmpl ? tmpl.selectiveLogic : 0),
-                  group: ext.group || (tmpl ? tmpl.group : '') || '',
-                  group_weight: ext.group_weight !== undefined ? ext.group_weight : (ext.groupWeight !== undefined ? ext.groupWeight : 100),
-                  prevent_recursion: ext.prevent_recursion !== undefined ? ext.prevent_recursion : (tmpl ? tmpl.prevent_recursion : false),
-                  exclude_recursion: ext.exclude_recursion !== undefined ? ext.exclude_recursion : (tmpl ? tmpl.exclude_recursion : false),
-                  delay_until_recursion: ext.delay_until_recursion !== undefined ? !!ext.delay_until_recursion : (tmpl ? !!tmpl.delay_until_recursion : false),
-                  use_group_scoring: ext.use_group_scoring !== undefined ? ext.use_group_scoring : false,
-                  vectorized: ext.vectorized !== undefined ? ext.vectorized : false,
-                  sticky: ext.sticky !== undefined && ext.sticky !== null ? ext.sticky : 0,
-                  cooldown: ext.cooldown !== undefined && ext.cooldown !== null ? ext.cooldown : 0,
-                  delay: ext.delay !== undefined && ext.delay !== null ? ext.delay : 0,
-                  scan_depth: ext.scan_depth !== undefined ? ext.scan_depth : (tmpl ? tmpl.scan_depth : null),
-                  match_whole_words: ext.match_whole_words !== undefined ? ext.match_whole_words : null,
-                  case_sensitive: ext.case_sensitive !== undefined ? ext.case_sensitive : null,
-                  automation_id: ext.automation_id || '',
-                  display_index: ext.display_index !== undefined ? ext.display_index : i,
-                  outlet_name: ext.outlet_name || '',
-                  triggers: ext.triggers || [],
-                  ignore_budget: ext.ignore_budget !== undefined ? ext.ignore_budget : false,
-                  match_persona_description: ext.match_persona_description !== undefined ? ext.match_persona_description : false,
-                  match_character_description: ext.match_character_description !== undefined ? ext.match_character_description : false,
-                  match_character_personality: ext.match_character_personality !== undefined ? ext.match_character_personality : false,
-                  match_character_depth_prompt: ext.match_character_depth_prompt !== undefined ? ext.match_character_depth_prompt : false,
-                  match_scenario: ext.match_scenario !== undefined ? ext.match_scenario : false,
-                  match_creator_notes: ext.match_creator_notes !== undefined ? ext.match_creator_notes : false
-                }
-              };
-            })
-          };
-        }
-
-        cardGenerated = !!(cardData.name && (cardData.description || (cardData.character_book.entries && cardData.character_book.entries.length > 0)));
-        progress = calcProgress();
-        messages = [];
-
-        renderChatUI();
-        var entriesLen = (cardData.character_book && cardData.character_book.entries) ? cardData.character_book.entries.length : 0;
-        var greeting = '你好！已成功导入角色卡「' + (cardData.name || '未命名') + '」🎭\n\n' +
-          '卡片数据：描述 ' + (cardData.description || '').length + ' 字、开场白 ' + (cardData.first_mes || '').length + ' 字、世界书 ' + entriesLen + ' 条\n\n' +
-          '**我已读取了角色卡的全部内容，可以直接进行增/删/改操作：**\n' +
-          '• 想修改某个字段？直接说"把名字改成XXX"或"修改世界观描述"\n' +
-          '• 想添加世界书条目？说"添加一个XX的条目"\n' +
-          '• 想优化内容？说"优化开场白"或"优化世界书条目"\n' +
-          '• 想质检？点击「✅ 质检」按钮\n\n' +
-          '请告诉我你想做什么！';
-        addAssistantMsg(greeting);
-        saveToStorage();
-      }
-
-      // ===== localStorage 持久化 =====
-      var STORAGE_KEY = 'modelo_char_generator_state';
-
-      function saveToStorage() {
-        try {
-          var state = {
-            cardData: cardData,
-            messages: messages,
-            cardGenerated: cardGenerated,
-            progress: progress,
-            moduleProgress: moduleProgress,
-            timestamp: Date.now()
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch(e) {
-          if (e.name === 'QuotaExceededError') {
-            console.warn('Storage quota exceeded');
-          }
-        }
-      }
-
-      function loadFromStorage() {
-        try {
-          var raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return false;
-          var state = JSON.parse(raw);
-          if (state.cardData) {
-            cardData = state.cardData;
-            // 防御性恢复结构：避免旧版/损坏数据导致后续访问崩溃
-            if (!cardData.character_book) cardData.character_book = { entries: [] };
-            if (!cardData.character_book.entries) cardData.character_book.entries = [];
-            if (!cardData.extensions) cardData.extensions = {};
-            if (!cardData.extensions.depth_prompt) cardData.extensions.depth_prompt = { prompt: '', depth: 0, role: 'system' };
-            if (!cardData.tags) cardData.tags = [];
-            if (!cardData.alternate_greetings) cardData.alternate_greetings = [];
-            messages = state.messages || [];
-            cardGenerated = state.cardGenerated || false;
-            progress = state.progress || 0;
-            moduleProgress = state.moduleProgress || { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
-            return true;
-          }
-        } catch(e) {}
-        return false;
-      }
-
-      function hasSavedData() {
-        try {
-          var raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return false;
-          var state = JSON.parse(raw);
-          return state && state.cardData && state.cardData.name && state.cardData.name.length > 0;
-        } catch(e) { return false; }
-      }
-
-      function clearStorage() {
-        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-      }
-
-      function continueFromSave() {
-        if (loadFromStorage()) {
-          renderChatUI();
-          // 恢复历史消息到对话区（renderChatUI 只搭建骨架，不渲染 messages）
-          var savedMessages = messages.slice();
-          messages = [];
-          var chatC = doc.getElementById('chatMessages');
-          if (chatC) chatC.innerHTML = '';
-          savedMessages.forEach(function(m) {
-            messages.push(m);
-            appendMsg(m.role, m.content);
-          });
-          updateProgress();
-          updateQuickActions();
-          updateModFocus();
-          renderPreview();
-          renderModDash();
-          showToast('已恢复上次创作进度', 'success');
-        } else {
-          showToast('没有找到保存的数据', 'warning');
-        }
-      }
-
-      function handleModFocus(mod) {
-        // 复用 handleQuickAction 的精细提示词，保证点击仪表盘/模块按钮都能给出体系化指令
-        handleQuickAction(mod);
-      }
-
-      function updateModFocus() {
-        var modBtns = doc.querySelectorAll('.mod-focus-btn');
-        if (!modBtns || !modBtns.length) return;
-        var mp = getModuleProgress();
-        var modMap = { 'axiom': 0, 'soft_rules': 0, 'core_rules': 0, 'near_constraint': 0, 'scene_mechanics': 0, 'entity_interact': 0, 'narrative_bg': 0, 'dynamic_adapt': 0, 'init_var': 0, 'var_update_rule': 0 };
-        Object.keys(mp).forEach(function(k) { if (mp[k]) modMap[k] = 100; });
-        var aiMp = moduleProgress || {};
-        Object.keys(aiMp).forEach(function(k) { if (aiMp[k] > 0) modMap[k] = Math.max(modMap[k] || 0, aiMp[k]); });
-        modBtns.forEach(function(btn) {
-          var mod = btn.getAttribute('data-mod');
-          var val = modMap[mod] || 0;
-          btn.classList.remove('active');
-          if (val >= 100) { btn.style.background = 'rgba(63,185,80,.15)'; btn.style.color = '#3fb950'; btn.style.borderColor = 'rgba(63,185,80,.3)'; }
-          else if (val > 0) { btn.style.background = 'rgba(210,153,34,.15)'; btn.style.color = '#d29922'; btn.style.borderColor = 'rgba(210,153,34,.3)'; }
-          else { btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }
-        });
-      }
-
-      function updateQuickActions() {
-        var qa = doc.getElementById('quickActions');
-        if (!qa) return;
-        var p = progress || 0;
-        var hasDesc = cardData.description && cardData.description.length > 50;
-        var hasFirst = cardData.first_mes && cardData.first_mes.length > 50;
-        var hasEntries = cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0;
-        var actions = [];
-        // 引导流程7步（规范4.5）：定核心铁则→搭世界基底→做实体内容→加场景规则→补叙事背景→做动态适配→配变量系统
-        if (p < 20) {
-          actions.push({ action: 'core_rules', label: '🔐 定核心铁则', hl: true });
-          actions.push({ action: 'axiom', label: '🏛️ 搭世界基底' });
-        } else if (p < 40) {
-          actions.push({ action: 'axiom', label: '🏛️ 搭世界基底', hl: true });
-          actions.push({ action: 'soft_rules', label: '🤝 交互软规则' });
-        } else if (p < 60) {
-          actions.push({ action: 'entity_interact', label: '👥 做实体内容', hl: true });
-          actions.push({ action: 'scene_mechanics', label: '⚔️ 加场景规则' });
-        } else if (p < 80) {
-          actions.push({ action: 'narrative_bg', label: '📖 补叙事背景' });
-          actions.push({ action: 'dynamic_adapt', label: '🔄 做动态适配', hl: true });
-        } else if (p < 95) {
-          actions.push({ action: 'init_var', label: '📊 配变量系统', hl: true });
-          actions.push({ action: 'generate', label: '✨ 生成角色卡' });
-        } else {
-          actions.push({ action: 'generate', label: '✨ 生成角色卡', hl: true });
-          actions.push({ action: 'optimize', label: '🔧 优化' });
-        }
-        // 常驻快捷动作
-        actions.push({ action: 'next', label: '💡 下一步' });
-        actions.push({ action: 'summary', label: '📊 当前进度' });
-        if (!hasFirst && p >= 20) actions.push({ action: 'opening', label: '🎬 生成开场白' });
-        actions.push({ action: 'qc', label: '✅ 质检' });
-        actions.push({ action: 'optimize', label: '🔧 优化' });
-        if (hasEntries) {
-          actions.push({ action: 'weight', label: '📊 权重可视化' });
-          actions.push({ action: 'group', label: '🗂️ 分组管理' });
-        }
-        actions.push({ action: 'generate', label: '✨ 生成角色卡' });
-        var h = '';
-        actions.forEach(function(a) {
-          h += '<button class="quick-btn' + (a.hl ? ' hl' : '') + '" data-action="' + a.action + '">' + a.label + '</button>';
-        });
-        qa.innerHTML = h;
-        var btns = qa.querySelectorAll('.quick-btn');
-        for (var i = 0; i < btns.length; i++) {
-          btns[i].addEventListener('click', function() {
-            var act = this.getAttribute('data-action');
-            handleQuickAction(act);
-          });
-        }
-      }
-
-      function handleQuickAction(action) {
-        var input = doc.getElementById('chatInput');
-        if (action === 'qc') { showQualityCheck(); return; }
-        if (action === 'optimize') { showOptimizeModal(); return; }
-        if (action === 'weight') { showWeightVisual(); return; }
-        if (action === 'group') { showGroupMgr(); return; }
-        if (action === 'generate') {
-          if (input) { input.value = '生成完整角色卡'; handleSend(); }
-          return;
-        }
-        var prompts = {
-          next: '下一步我该做什么？请根据当前完成度和未达标项，给出2-3条具体可执行的建议，并说明每条建议会改善哪个体系。',
-          summary: '帮我梳理一下当前已收集的信息和进度：1) 已完成的核心设定 2) 各体系完成情况 3) 还缺什么 4) 推荐的下一步。用简洁列表呈现。',
-          opening: '请根据现有世界观设定生成一段500-800字的开场白（first_mes）。要求：场景描写→主角出场→冲突/悬念→结尾留钩。必须是完整文本，禁止占位符。',
-          situation: '请帮我完善当前局势和主要势力关系，输出到```json代码块的 entries 字段中（近场强约束+实体交互类条目）。',
-          axiom: '请帮我完善【基础公理】体系：世界元数据、世界观公理、力量体系骨架。输出到```json代码块的 entries 字段，使用<基础公理>前缀，constant=true，position=0，每条content≥250字。',
-          soft_rules: '请帮我设计【交互软规则】体系：互动选项规则、叙事风格引导、剧情节奏控制。输出到```json代码块，使用<交互软规则>前缀。',
-          core_rules: '请帮我完善【核心铁则】体系：绝对禁止项、输出格式要求、AI身份定位。核心规则放post_history_instructions（≤100字分号分隔），详细规则放<核心铁则>条目。',
-          near_constraint: '请帮我设计【近场强约束】体系：当前局势、即时状态、临时任务。输出到```json代码块，使用<近场强约束>前缀，触发式条目depth=2。',
-          scene_mechanics: '请帮我完善【场景机制】体系：核心玩法、世界规则、战斗/修炼/谈判等机制。输出到```json代码块，使用<场景机制>前缀。',
-          entity_interact: '请帮我设计【实体交互】体系：重要角色（NPC）、势力与组织、关键物品、地点场景。输出到```json代码块，使用<实体交互>前缀，prevent_recursion=true。',
-          narrative_bg: '请帮我完善【叙事背景】体系：故事发展、文化与习俗、历史事件、主线剧情。输出到```json代码块，使用<叙事背景>前缀，delay_until_recursion=true。',
-          dynamic_adapt: '请帮我设计【动态适配】体系：引导机制、互动选项、状态栏、depth_prompt新手引导、alternate_greetings备用开局。输出到```json代码块。',
-          init_var: '请帮我设计MVU变量系统：1) [InitVar]初始变量（enabled=false，YAML格式，缩进表示层级，含世界/角色/状态分层） 2) 变量列表（含{{format_message_variable::stat_data}}宏） 3) 变量更新规则 4) 变量输出格式（[mvu_update]前缀，JSON Patch格式）。输出到```json代码块的 entries 字段。',
-          var_update_rule: '请帮我完善变量更新规则和变量输出格式条目：变量更新规则定义每个变量的更新条件；变量输出格式使用[mvu_update]前缀，定义<UpdateVariable>的JSON Patch（replace/delta/insert/remove/move）输出格式。'
-        };
-        if (prompts[action] && input) { input.value = prompts[action]; handleSend(); }
-      }
-
-      function addAssistantMsg(content) {
-        messages.push({ role: 'assistant', content: content });
-        appendMsg('assistant', content);
-        saveToStorage();
-        renderModDash();
-      }
-      function addUserMsg(content) {
-        messages.push({ role: 'user', content: content });
-        appendMsg('user', content);
-        saveToStorage();
-      }
-      function appendMsg(role, content) {
-        var c = doc.getElementById('chatMessages');
-        if (!c) return;
-        var div = doc.createElement('div');
-        div.className = 'chat-msg ' + role;
-        div.innerHTML = '<div class="avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="bubble">' + fmtBubble(content) + '</div>';
-        c.appendChild(div);
-        scrollChat();
-      }
-      function addTyping() {
-        removeTyping();
-        var c = doc.getElementById('chatMessages');
-        if (!c) return;
-        var div = doc.createElement('div');
-        div.className = 'chat-msg assistant';
-        div.id = 'typingInd';
-        div.innerHTML = '<div class="avatar">🤖</div><div class="bubble typing"><span>●</span><span>●</span><span>●</span> 思考中...</div>';
-        c.appendChild(div);
-        scrollChat();
-      }
-      function removeTyping() {
-        var t = doc.getElementById('typingInd');
-        if (t) t.remove();
-      }
-      function scrollChat() {
-        var c = doc.getElementById('chatMessages');
-        if (c) requestAnimationFrame(function() { c.scrollTop = c.scrollHeight; });
-      }
-      function fmtBubble(t) {
-        var parts = [];
-        var re = /<statusblock>([\s\S]*?)<\/statusblock>/gi;
-        var last = 0;
-        var m;
-        while ((m = re.exec(t)) !== null) {
-          if (m.index > last) {
-            parts.push({ type: 'text', content: t.substring(last, m.index) });
-          }
-          parts.push({ type: 'status', content: m[1] });
-          last = m.index + m[0].length;
-        }
-        if (last < t.length) {
-          parts.push({ type: 'text', content: t.substring(last) });
-        }
-        var out = '';
-        parts.forEach(function(p) {
-          if (p.type === 'status') {
-            out += '<div class="sb-wrap">' + parseStatusblock(p.content) + '</div>';
-          } else {
-            var h = p.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            h = h.replace(/```json\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
-            h = h.replace(/```\w*\s*([\s\S]*?)```/g, function(_, code) { return '<pre><code>' + code + '</code></pre>'; });
-            h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
-            h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-            h = h.replace(/\n{3,}/g, '\n\n');
-            h = h.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-            out += h;
-          }
-        });
-        return out;
-      }
-      function parseStatusblock(inner) {
-        var h = inner.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        // Convert details/summary BEFORE unescaping other tags
-        h = h.replace(/&lt;details(\s*)(open)?&gt;/g, '<div class="sb-section open"><div class="sb-summary">');
-        h = h.replace(/&lt;\/details&gt;/g, '</div></div>');
-        h = h.replace(/&lt;summary&gt;&lt;b&gt;([\s\S]*?)&lt;\/b&gt;&lt;\/summary&gt;/g, function(_, title) {
-          return '</div><div class="sb-content">';
-        });
-        h = h.replace(/&lt;summary&gt;([\s\S]*?)&lt;\/summary&gt;/g, function(_, title) {
-          return '</div><div class="sb-content">';
-        });
-        // Unescape safe tags (details/summary already converted above)
-        var safeTags = 'ul|ol|li|p|b|br|span|div';
-        h = h.replace(new RegExp('&lt;(' + safeTags + ')(\\s[^&>]*)?&gt;','gi'), '<$1$2>');
-        h = h.replace(new RegExp('&lt;/(' + safeTags + ')&gt;','gi'), '</$1>');
-        h = h.replace(/&lt;button([^&]*)&gt;/g, '<button$1>').replace(/&lt;\/button&gt;/g, '</button>');
-        h = h.replace(/(『[^』]+』)/g, '<div class="sb-header">$1</div>');
-        h = h.replace(/^(.+?):\s*(.+)$/gm, function(m, k, v) {
-          if (k.indexOf('<') >= 0 || v.indexOf('</') >= 0) return m;
-          return '<div class="sb-field"><span class="sb-field-label">' + k + ':</span> <span class="sb-field-value">' + v + '</span></div>';
-        });
-        return h;
-      }
-
-      function renderModDash() {
-        var dash = doc.getElementById('modDash');
-        if (!dash) return;
-        var mp = getDetailedModuleProgress();
-        var labels = [
-          { key: 'axiom', icon: '🏛️', name: '基础公理', group: '常驻' },
-          { key: 'soft_rules', icon: '🤝', name: '交互软规则', group: '常驻' },
-          { key: 'core_rules', icon: '🔐', name: '核心铁则', group: '常驻' },
-          { key: 'near_constraint', icon: '🎯', name: '近场强约束', group: '触发' },
-          { key: 'scene_mechanics', icon: '⚔️', name: '场景机制', group: '触发' },
-          { key: 'entity_interact', icon: '👥', name: '实体交互', group: '触发' },
-          { key: 'narrative_bg', icon: '📖', name: '叙事背景', group: '触发' },
-          { key: 'dynamic_adapt', icon: '🔄', name: '动态适配', group: '动态' },
-          { key: 'init_var', icon: '📊', name: '初始变量', group: '变量' },
-          { key: 'var_update_rule', icon: '📝', name: '变量更新规则', group: '变量' }
-        ];
-        // 计算总进度（用于仪表盘头部展示）
-        var totalPct = 0;
-        var doneCount = 0;
-        labels.forEach(function(l) {
-          var v = mp[l.key] || 0;
-          totalPct += v;
-          if (v >= 100) doneCount++;
-        });
-        var avgPct = Math.round(totalPct / labels.length);
-        var groups = { '常驻': '#3fb950', '触发': '#d2a8ff', '动态': '#f78166', '变量': '#58a6ff' };
-        var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #21262d">' +
-          '<div style="display:flex;flex-wrap:wrap;gap:4px">';
-        Object.keys(groups).forEach(function(g) {
-          h += '<span style="font-size:.62em;color:' + groups[g] + ';background:rgba(255,255,255,.03);padding:1px 6px;border-radius:3px">' + g + '体系</span>';
-        });
-        h += '</div>' +
-          '<span style="font-size:.65em;color:' + (avgPct >= 100 ? '#3fb950' : avgPct >= 50 ? '#d2a8ff' : '#8b949e') + '">' + doneCount + '/' + labels.length + ' 完成 · 均' + avgPct + '%</span>' +
-          '</div>';
-        labels.forEach(function(l) {
-          var val = mp[l.key] || 0;
-          var cls = val >= 100 ? 'done' : val > 0 ? 'prog' : 'empty';
-          var groupColor = groups[l.group] || '#8b949e';
-          h += '<div class="mod-dash-item" data-mod="' + l.key + '" title="' + l.group + '体系 · 点击让AI完善此模块">' +
-            '<span class="m-icon">' + l.icon + '</span>' +
-            '<span class="m-name" style="color:' + groupColor + '">' + l.name + '</span>' +
-            '<span class="m-bar-wrap"><span class="m-bar ' + cls + '" style="width:' + val + '%"></span></span>' +
-            '<span class="m-pct">' + val + '%</span>' +
-          '</div>';
-        });
-        var body = dash.querySelector('.md-body');
-        if (body) body.innerHTML = h;
-        // 仪表盘条目点击：让AI完善对应模块
-        var items = dash.querySelectorAll('.mod-dash-item');
-        for (var i = 0; i < items.length; i++) {
-          items[i].addEventListener('click', function() {
-            var mod = this.getAttribute('data-mod');
-            if (mod) handleModFocus(mod);
-          });
-        }
-        // 头部：折叠/展开 + AI分析按钮（避免重复绑定）
-        var header = dash.querySelector('.md-header');
-        if (header) {
-          if (!header.getAttribute('data-bound')) {
-            header.setAttribute('data-bound', '1');
-            header.addEventListener('click', function(e) {
-              // 点击 AI分析按钮不触发挥折叠
-              if (e.target.closest('.md-analyze-btn')) return;
-              toggleDash();
-            });
-          }
-          var btn = header.querySelector('.md-analyze-btn');
-          if (!btn) {
-            btn = doc.createElement('button');
-            btn.className = 'md-analyze-btn';
-            btn.type = 'button';
-            btn.textContent = '🔍 AI分析';
-            btn.addEventListener('click', function(e) {
-              e.stopPropagation();
-              handleAnalyzeProgress();
-            });
-            header.appendChild(btn);
-          }
-        }
-      }
-      async function handleAnalyzeProgress() {
-        if (isGenerating) return;
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length === 0 && !cardData.description) {
-          showToast('还没有内容可以分析，请先和AI聊聊', 'warning');
-          return;
-        }
-        isGenerating = true;
-        setEnabled(false);
-        addTyping();
-        try {
-          var analyzePrompt = SYS_PROMPT +
-            '\n\n=== AI分析指令 ===\n' +
-            '请全面分析当前角色卡内容，完成以下任务：\n' +
-            '1. 评估每个体系的完成度（0-100），输出到```json代码块\n' +
-            '2. JSON格式（严格）：{"axiom":0-100,"soft_rules":0-100,"core_rules":0-100,"near_constraint":0-100,"scene_mechanics":0-100,"entity_interact":0-100,"narrative_bg":0-100,"dynamic_adapt":0-100,"init_var":0-100,"var_update_rule":0-100}\n' +
-            '   评分标准：0=无内容，30=有1条短内容，60=有1条≥250字，80=有1条≥500字，100=≥2条且总长≥500字\n' +
-            '3. 用自然语言给出每个体系的改进建议和下一步行动方向\n' +
-            '4. 最后给出一条适合用户直接输入的建议指令（放在<suggestion>标签中，标签内是纯指令文本，不含解释）\n\n' +
-            '=== 当前角色卡内容 ===\n' +
-            (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 500) + '\n' : '') +
-            (cardData.first_mes ? '- 开场白(' + (cardData.first_mes||'').length + '字)\n' : '') +
-            (cardData.post_history_instructions ? '- 核心铁则(' + (cardData.post_history_instructions||'').length + '字)\n' : '') +
-            '- 世界书条目：' + entries.length + '条\n' +
-            (entries.length > 0 ? '- 条目清单：\n' + entries.map(function(e) { return '  · [' + (e.comment||'未命名') + '] ' + (e.content||'').length + '字' + (e.enabled === false ? ' (禁用)' : ''); }).join('\n') : '');
-          var aiResponse = await callAI(analyzePrompt);
-          removeTyping();
-          var parsed = extractJSON(aiResponse);
-          if (parsed) {
-            Object.keys(parsed).forEach(function(k) {
-              if (moduleProgress.hasOwnProperty(k) && typeof parsed[k] === 'number') {
-                moduleProgress[k] = Math.max(0, Math.min(100, parsed[k]));
-              }
-            });
-          }
-          var suggestion = aiResponse.match(/<suggestion>([\s\S]*?)<\/suggestion>/);
-          var input = doc.getElementById('chatInput');
-          if (suggestion && input) {
-            input.value = suggestion[1].trim();
-          }
-          var dialogue = aiResponse.replace(/```[\s\S]*?```/g, '').replace(/<suggestion>[\s\S]*?<\/suggestion>/g, '').trim();
-          if (dialogue) {
-            try { addAssistantMsg(dialogue); } catch(e) { console.warn('addAssistantMsg error:', e); }
-          } else {
-            try { addAssistantMsg(aiResponse); } catch(e) { console.warn('addAssistantMsg error:', e); }
-          }
-          updateProgress();
-          updateQuickActions();
-          updateModFocus();
-          renderPreview();
-          renderModDash();
-          saveToStorage();
-        } catch(err) {
-          removeTyping();
-          try { addAssistantMsg('😞 分析失败：' + err.message); } catch(e) {}
-        } finally {
-          isGenerating = false;
-          try { setEnabled(true); } catch(e) {}
-        }
-      }
-
-      function toggleDash() {
-        var dash = doc.getElementById('modDash');
-        if (dash) dash.classList.toggle('collapsed');
-      }
-
-      function getDetailedModuleProgress() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
-        var modKeywords = {
-          axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
-          soft_rules: ['交互软规则', '互动选项', '叙事风格', '剧情引导'],
-          core_rules: ['核心铁则', '绝对禁止', '输出格式', 'AI身份', 'post_history'],
-          near_constraint: ['近场强约束', '当前局势', '即时状态', '临时任务'],
-          scene_mechanics: ['场景机制', '核心玩法', '世界规则', '战斗规则', '修炼', '谈判'],
-          entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景', 'NPC'],
-          narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件', '主线剧情'],
-          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏', 'alternate', 'depth_prompt'],
-          init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
-          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable', 'mvu_update']
-        };
-        Object.keys(modKeywords).forEach(function(mod) {
-          var kws = modKeywords[mod];
-          var count = 0;
-          var totalLen = 0;
-          var matched = {};
-          entries.forEach(function(e) {
-            var comment = e.comment || '';
-            var isMatch = kws.some(function(kw) { return comment.indexOf(kw) >= 0; });
-            if (isMatch && !matched[comment]) {
-              matched[comment] = true;
-              count++;
-              totalLen += (e.content || '').length;
-            }
-          });
-          // 完成度计算：1条+长度≥250 → 60%；1条+长度≥500 → 80%；≥2条+长度≥500 → 100%
-          if (count >= 2 && totalLen >= 500) result[mod] = 100;
-          else if (count >= 1 && totalLen >= 500) result[mod] = 80;
-          else if (count >= 1 && totalLen >= 250) result[mod] = 60;
-          else if (count >= 1) result[mod] = Math.min(30 + Math.floor(totalLen / 25), 55);
-          else result[mod] = 0;
-        });
-        if (cardData.post_history_instructions && cardData.post_history_instructions.length > 0) {
-          result.core_rules = Math.max(result.core_rules, 50);
-        }
-        if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt && cardData.extensions.depth_prompt.prompt.length > 0) {
-          result.dynamic_adapt = Math.max(result.dynamic_adapt, 30);
-        }
-        if (cardData.alternate_greetings && cardData.alternate_greetings.length > 0) {
-          result.dynamic_adapt = Math.max(result.dynamic_adapt, 30);
-        }
-        var aiMp = moduleProgress || {};
-        Object.keys(aiMp).forEach(function(k) {
-          if (aiMp[k] > 0 && result[k] === 0) result[k] = aiMp[k];
-        });
-        return result;
-      }
-      function parseModProgress(reply) {
-        var modMap = {
-          '基础公理': 'axiom',
-          '交互软规则': 'soft_rules',
-          '核心铁则': 'core_rules',
-          '近场强约束': 'near_constraint',
-          '场景机制': 'scene_mechanics',
-          '实体交互': 'entity_interact',
-          '叙事背景': 'narrative_bg',
-          '动态适配': 'dynamic_adapt',
-          '初始变量': 'init_var',
-          '变量更新规则': 'var_update_rule',
-          '变量系统': 'init_var'
-        };
-        var result = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
-        Object.keys(modMap).forEach(function(kw) {
-          var key = modMap[kw];
-          var re = new RegExp(kw + '[^\\n]*?([✅⏳❌])');
-          var m = reply.match(re);
-          if (m) {
-            var sym = m[1];
-            result[key] = sym === '✅' ? 100 : sym === '⏳' ? 50 : 0;
-          }
-        });
-        if (cardData && cardData.character_book && cardData.character_book.entries) {
-          var entries = cardData.character_book.entries;
-          Object.keys(modMap).forEach(function(kw) {
-            var key = modMap[kw];
-            var count = 0;
-            entries.forEach(function(e) {
-              if ((e.comment || '').indexOf(kw) >= 0) count++;
-            });
-            if (result[key] === 100 && count === 0) result[key] = 0;
-            if (result[key] === 100 && count === 1) result[key] = 50;
-            if (result[key] === 50 && count === 0) result[key] = 0;
-          });
-        }
-        return result;
-      }
-      function escHtml(t) {
-        if (!t) return '';
-        var d = doc.createElement('div');
-        d.textContent = t;
-        return d.innerHTML;
-      }
-
-      var lastUserInput = '';
-      async function handleSend() {
-        var input = doc.getElementById('chatInput');
-        var text = input ? input.value.trim() : '';
-        if (!text || isGenerating) return;
-        input.value = '';
-        lastUserInput = text;
-        var genKw = ['生成角色卡','生成完整角色卡','导出角色卡','完整生成'];
-        var isGenCmd = genKw.some(function(k) { return text === k || text.indexOf(k) >= 0; });
-        if (isGenCmd && progress >= 30) {
-          addUserMsg(text);
-          await doGenerate();
-          return;
-        }
-        addUserMsg(text);
-        await callAIChat();
-      }
-
-      // ===== AI回复清理（移除思考链、内部标签等） =====
-      function cleanAIReply(text) {
-        if (!text) return text;
-        var t = text;
-        t = t.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
-        t = t.replace(/<!--\s*End of The ECoT\s*-->/gi, '');
-        t = t.replace(/^#\s*果农人格加载[^\n]*\n/gim, '');
-        t = t.replace(/\*果农记录[：:][^*]*\*/g, '');
-        t = t.replace(/<time_format>[\s\S]*?<\/time_format>/gi, '');
-        t = t.replace(/<content>/gi, '').replace(/<\/content>/gi, '');
-        t = t.replace(/^\[(语言检定|果农冒泡|NSFW判定|人物逻辑|基调锚定|角色认知迷雾|角色活性与自然回应|风格适配|反思\s*&?\s*设定校对|物理规则|正文字数检测|输出顺序检查|时间地点输出检查|善意视角|防重复|反思)\][^\n]*\n/gim, '');
-        t = t.replace(/<角色认知迷雾>[\s\S]*?<\/角色认知迷雾>/gi, '');
-        t = t.replace(/<角色活性与自然回应>[\s\S]*?<\/角色活性与自然回应>/gi, '');
-        t = t.replace(/\n{4,}/g, '\n\n\n');
-        t = t.trim();
-        return t;
-      }
-
-      // ===== 从AI回复中提取JSON =====
-      function extractJSON(text) {
-        if (!text) return null;
-        var patterns = [
-          /```json\s*([\s\S]*?)\s*```/i,
-          /```javascript\s*([\s\S]*?)\s*```/i,
-          /```js\s*([\s\S]*?)\s*```/i,
-          /```\s*([\s\S]*?)\s*```/i,
-        ];
-        for (var i = 0; i < patterns.length; i++) {
-          var m = text.match(patterns[i]);
-          if (m) {
-            var jsonContent = m[1].trim();
-            try { return JSON.parse(jsonContent); } catch(e) {}
-            var fixed = repairJSON(jsonContent);
-            if (fixed) return fixed;
-          }
-        }
-        var braceStart = text.indexOf('{');
-        var braceEnd = text.lastIndexOf('}');
-        if (braceStart >= 0 && braceEnd > braceStart) {
-          var candidate = text.substring(braceStart, braceEnd + 1);
-          try { return JSON.parse(candidate.trim()); } catch(e) {}
-          var fixed2 = repairJSON(candidate);
-          if (fixed2) return fixed2;
-        }
-        return null;
-      }
-
-      // JSON 修复：用状态机遍历，只对"键位置"的裸标识符补引号，
-      // 避免破坏字符串值内部的 word: 模式（如 "Time: 远古"）
-      function repairJSON(str) {
-        if (!str) return null;
-        // 1) 先尝试直接解析
-        try { return JSON.parse(str); } catch(e) {}
-        // 2) 反转义多余转义、修复尾逗号
-        var s = str
-          .replace(/\\\\n/g, '\\n')
-          .replace(/\\\\r/g, '\\r')
-          .replace(/,\s*}/g, '}')
-          .replace(/,\s*]/g, ']');
-        try { return JSON.parse(s); } catch(e) {}
-        // 3) 状态机：单引号字符串转双引号 + 裸键补引号（不触碰字符串内部）
-        var out = [];
-        var i = 0;
-        var len = s.length;
-        // state: 0=期望键或值, 1=字符串内, 2=键已结束待冒号, 3=值已结束待逗号/括号
-        var afterColon = false; // 上一非空白token是否是冒号（值上下文）
-        while (i < len) {
-          var ch = s[i];
-          if (ch === '"') {
-            // 双引号字符串：原样复制到匹配的结束引号（处理转义）
-            out.push(ch);
-            i++;
-            while (i < len) {
-              var c = s[i];
-              out.push(c);
-              if (c === '\\' && i + 1 < len) { out.push(s[i+1]); i += 2; continue; }
-              i++;
-              if (c === '"') break;
-            }
-            afterColon = false;
-            continue;
-          }
-          if (ch === "'") {
-            // 单引号字符串：转成双引号
-            out.push('"');
-            i++;
-            while (i < len) {
-              var c2 = s[i];
-              if (c2 === '\\' && i + 1 < len) {
-                // 转义字符原样保留
-                out.push(c2, s[i+1]);
-                i += 2;
-                continue;
-              }
-              if (c2 === "'") { out.push('"'); i++; break; }
-              if (c2 === '"') { out.push('\\'); } // 字符串内的双引号需转义
-              out.push(c2);
-              i++;
-            }
-            afterColon = false;
-            continue;
-          }
-          // 裸键检测：在键上下文（非值，紧跟标识符 + 冒号）
-          if (!afterColon && /[a-zA-Z_$]/.test(ch)) {
-            var j = i;
-            while (j < len && /[a-zA-Z0-9_$]/.test(s[j])) j++;
-            // 跳过空白看是否跟冒号
-            var k = j;
-            while (k < len && /\s/.test(s[k])) k++;
-            if (k < len && s[k] === ':') {
-              // 是裸键，补引号
-              out.push('"', s.substring(i, j), '"');
-              i = j;
-              continue;
-            }
-          }
-          if (ch === ':') afterColon = true;
-          else if (ch === ',' || ch === '{' || ch === '[') afterColon = false;
-          else if (ch === '}' || ch === ']') afterColon = false;
-          out.push(ch);
-          i++;
-        }
-        var repaired = out.join('');
-        try { return JSON.parse(repaired); } catch(e) { return null; }
-      }
-
-      // ===== AI对话调用 =====
-      async function callAIChat() {
-        if (isGenerating) return;
-        isGenerating = true;
-        setEnabled(false);
-        addTyping();
-        try {
-          var prompt = buildPrompt(cardData, cardGenerated, messages);
-          var aiResponse = await callAI(prompt);
-          aiResponse = cleanAIReply(aiResponse);
-          removeTyping();
-          var parsed = extractJSON(aiResponse);
-          if (parsed) {
-            var hasData = Object.keys(parsed).filter(function(k) { return k !== '_nochange'; }).length > 0;
-            if (hasData) {
-              // 传递 returnLog 选项以便获取精确的变更统计（新增/删除/更新数量）
-              var mergeResult = mergePartial(parsed, cardData, { returnLog: true });
-              var actuallyModified = false;
-              var changeLogResult = null;
-              if (typeof mergeResult === 'object' && mergeResult !== null) {
-                actuallyModified = !!mergeResult.modified;
-                changeLogResult = mergeResult.log || null;
-              } else {
-                actuallyModified = !!mergeResult;
-              }
-              if (actuallyModified) {
-                if (cardData.name && (cardData.description || (cardData.character_book && cardData.character_book.entries && cardData.character_book.entries.length > 0))) {
-                  cardGenerated = true;
-                }
-                progress = calcProgress();
-                // 显示变更统计 Toast，让用户明确知道AI确实执行了删改而不是瞎加
-                try {
-                  if (changeLogResult) {
-                    var cr = changeLogResult;
-                    var parts = [];
-                    if (cr.added) parts.push('➕新增' + cr.added + '条');
-                    if (cr.updated) parts.push('🔄更新' + cr.updated + '条');
-                    if (cr.deleted) parts.push('🗑️删除' + cr.deleted + '条');
-                    if (cr.fieldUpdates) parts.push('📝字段' + cr.fieldUpdates + '项');
-                    if (parts.length) showToast('✅ 已应用修改：' + parts.join('，'), 'success');
-                  }
-                } catch(e) { /* ignore */ }
-              } else if (hasData) {
-                // AI输出了JSON但实际上没修改到任何东西（可能comment不匹配导致只加不删没生效）
-                // 提示用户可能需要调整comment
-                showToast('⚠️ AI返回了修改指令，但未匹配到任何条目（可能comment不精确）。请让AI使用精确comment或在JSON中加_action:delete明确删除', 'warning', 6000);
-              }
-            }
-          }
-          // lastUserInput 兜底逻辑：仅在用户明确要求修改开场白时才强制写入 first_mes
-          // 修复：之前用 indexOf('开场白') 太脆弱，"别动开场白"也会触发
-          // 现在改为：只在 parsed 中有 first_mes 且 mergePartial 没成功写入时才兜底
-          // 且不再依赖 lastUserInput 关键词匹配（mergePartial 已能处理 first_mes 更新）
-          if (parsed && parsed.first_mes && typeof parsed.first_mes === 'string' && parsed.first_mes.trim().length > 50) {
-            // 仅当 mergePartial 没修改到 first_mes 时，才用这段兜底赋值
-            if (cardData.first_mes !== parsed.first_mes.trim()) {
-              // 额外检查：用户当前输入确实是在讨论开场白（正向意图，非否定语境）
-              if (lastUserInput) {
-                var hasOpening = lastUserInput.indexOf('开场白') >= 0 || lastUserInput.indexOf('first_mes') >= 0 || lastUserInput.indexOf('opening') >= 0 || lastUserInput.indexOf('开局') >= 0;
-                var isNegation = /别动|不要|不用|别改|保持|取消|撤销|删除开场/.test(lastUserInput);
-                if (hasOpening && !isNegation) {
-                  cardData.first_mes = parsed.first_mes.trim();
-                  progress = calcProgress();
-                }
-              }
-            }
-          }
-          var modProg = parseModProgress(aiResponse);
-          if (modProg) {
-            var entries = (cardData.character_book || {}).entries || [];
-            var modMap = {
-              '基础公理': 'axiom',
-              '交互软规则': 'soft_rules',
-              '核心铁则': 'core_rules',
-              '近场强约束': 'near_constraint',
-              '场景机制': 'scene_mechanics',
-              '实体交互': 'entity_interact',
-              '叙事背景': 'narrative_bg',
-              '动态适配': 'dynamic_adapt',
-              '初始变量': 'init_var',
-              '变量更新规则': 'var_update_rule'
-            };
-            // 仅当 AI 回复中确实识别到模块状态符号时才更新，
-            // 否则 parseModProgress 返回全 0 会清空真实进度
-            var hasAnySignal = Object.keys(modProg).some(function(k) { return modProg[k] > 0; });
-            if (hasAnySignal) {
-              Object.keys(modMap).forEach(function(kw) {
-                var key = modMap[kw];
-                if (modProg[key] === 100) {
-                  var count = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
-                  if (count === 0) modProg[key] = 0;
-                  else if (count === 1) modProg[key] = 50;
-                }
-                if (modProg[key] === 50) {
-                  var cnt = entries.filter(function(e) { return (e.comment || '').indexOf(kw) >= 0; }).length;
-                  if (cnt === 0) modProg[key] = 0;
-                }
-              });
-              // 合并而非覆盖：仅更新 AI 明确给出的模块，保留其余模块的原有进度
-              Object.keys(modProg).forEach(function(k) {
-                if (modProg[k] > 0) moduleProgress[k] = modProg[k];
-              });
-            }
-          }
-          // 对话框显示：用原始 aiResponse（保留JSON代码块和statusblock让用户看到完整输出）
-          // 历史存储：用清理后的文本（去掉JSON块和statusblock HTML，节省token防止历史膨胀）
-          var rawContent = aiResponse;
-          var cleanContent = aiResponse
-            .replace(/```[\s\S]*?```/g, '')
-            .replace(/<statusblock>[\s\S]*?<\/statusblock>/gi, '')
-            .replace(/<details[\s\S]*?<\/details>/gi, '')
-            .trim();
-
-          // 1. 先显示完整内容到对话框（用户需要看到JSON和statusblock）
-          try { appendMsg('assistant', rawContent); } catch(e) { console.warn('appendMsg error:', e); }
-
-          // 2. 再存储清理后的对话文本到历史
-          if (cleanContent && cleanContent.length > 5) {
-            messages.push({ role: 'assistant', content: cleanContent });
-          } else {
-            // 清理后太短说明AI只输出了JSON没有自然对话，用简短摘要
-            messages.push({ role: 'assistant', content: '（已应用修改，详见上方变更提示）' });
-          }
-          saveToStorage();
-          updateProgress();
-          updateQuickActions();
-          updateModFocus();
-          renderPreview();
-          renderModDash();
-          saveToStorage();
-        } catch(err) {
-          removeTyping();
-          try { addAssistantMsg('😞 出错了：' + err.message + '\n\n请检查酒馆是否已连接AI模型，以及JS-Slash-Runner插件是否已启用。'); } catch(e) {}
-          try { setEnabled(true); } catch(e) {}
-        } finally {
-          isGenerating = false;
-          try { setEnabled(true); } catch(e) {}
-        }
-      }
-
-      // ===== 完整生成 =====
-      async function doGenerate() {
-        if (isGenerating) return;
-        isGenerating = true;
-        setEnabled(false);
-        addTyping();
-        try {
-          var hasAll = cardData.name && cardData.description && cardData.first_mes && ((cardData.character_book || {}).entries || []).length >= 4;
-          if (hasAll) {
-            removeTyping();
-            cardGenerated = true;
-            setProgress(100);
-            renderPreview();
-            updateModFocus();
-            renderModDash();
-            addAssistantMsg('🎉 角色卡内容已完整！点击「💾 导出」查看完整JSON。\n\n你也可以继续和我对话，随时修改或补充内容。');
-            isGenerating = false;
-            setEnabled(true);
-            return;
-          }
-          var genPrompt = SYS_PROMPT +
-            '\n\n=== 生成指令 ===\n' +
-            '请立即生成完整的角色卡数据，补齐所有缺失的核心字段。使用chara_card_v3格式，输出到```json代码块中。\n\n' +
-            '=== 必须达到的字段标准 ===\n' +
-            '- name：简洁有力的世界/角色名称（≤15字）\n' +
-            '- description：≥400字，覆盖世界核心设定、地理、历史、文化、社会结构\n' +
-            '- first_mes：500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩\n' +
-            '- system_prompt：≤50字，仅AI身份定位一句话\n' +
-            '- post_history_instructions：≤100字，分号分隔的核心铁则（最高权重位）\n' +
-            '- personality/scenario：必须留空（世界模式规范）\n' +
-            '- tags：2-12个精准标签\n' +
-            '- mes_example：1-2组对话示例（Few-shot）\n' +
-            '- alternate_greetings：≥3个差异化备用开局\n' +
-            '- extensions.depth_prompt：新手引导（depth=0）\n' +
-            '- extensions.regex_scripts：3-5条状态同步正则\n' +
-            '- character_book.entries：≥12条，覆盖八大体系（<基础公理><交互软规则><核心铁则><近场强约束><场景机制><实体交互><叙事背景><动态系统>），每条content≥250字\n' +
-            '- 已有条目用相同comment覆盖，缺失的补充新条目\n\n' +
-            '=== 已有内容（参考，不要丢失） ===\n' +
-            (cardData.name ? '- 名称：' + cardData.name + '\n' : '') +
-            (cardData.description ? '- 描述(' + (cardData.description||'').length + '字)：' + (cardData.description||'').substring(0, 300) + '\n' : '') +
-            '- 条目数：' + (((cardData.character_book || {}).entries || []).length) + '条\n' +
-            (cardData.tags && cardData.tags.length ? '- 标签：' + cardData.tags.join(',') : '') +
-            '\n=== 输出要求 ===\n只输出一个完整的```json代码块，包含完整角色卡数据（spec/data/character_book结构）。';
-          var aiResponse = await callAI(genPrompt);
-          removeTyping();
-          var parsed = extractJSON(aiResponse);
-          if (parsed) {
-            try {
-              var genMergeOk = false;
-              if (parsed.spec === 'chara_card_v3' && parsed.data) {
-                // v3 格式：解包 data 字段后走 mergePartial，保证模板默认值和 keys 保留逻辑生效
-                var rV3 = mergePartial(parsed.data, cardData, { returnLog: true });
-                genMergeOk = !!(typeof rV3 === 'object' ? rV3.modified : rV3);
-              } else {
-                var rPlain = mergePartial(parsed, cardData, { returnLog: true });
-                genMergeOk = !!(typeof rPlain === 'object' ? rPlain.modified : rPlain);
-              }
-              cardGenerated = true;
-              setProgress(100);
-              renderPreview();
-              updateModFocus();
-              renderModDash();
-              saveToStorage();
-              addAssistantMsg('🎉 角色卡生成成功！点击「💾 导出」查看完整JSON。');
-            } catch(e) {
-              addAssistantMsg('⚠️ 解析失败，请重试。\n\n错误：' + e.message);
-            }
-          } else {
-            addAssistantMsg('⚠️ 未找到JSON格式，可能需要再补充一些信息。\n\nAI返回前300字：\n' + aiResponse.substring(0, 300));
-          }
-        } catch(err) {
-          removeTyping();
-          addAssistantMsg('生成出错：' + err.message);
-        } finally {
-          isGenerating = false;
-          setEnabled(true);
-        }
-      }
-
-      function setEnabled(enabled) {
-        var sendBtn = doc.getElementById('sendBtn');
-        var saveBtn = doc.getElementById('saveBtn');
-        var input = doc.getElementById('chatInput');
-        if (sendBtn) sendBtn.disabled = !enabled;
-        if (saveBtn) saveBtn.disabled = !enabled;
-        if (input) { input.disabled = !enabled; if (enabled) { try { input.focus(); } catch(e){} } }
-        // 快捷按钮、模块聚焦按钮、仪表盘条目统一禁用/启用，避免生成中误触
-        var sels = ['.quick-btn', '.mod-focus-btn', '.mod-dash-item', '.md-analyze-btn'];
-        for (var s = 0; s < sels.length; s++) {
-          var nodes = doc.querySelectorAll(sels[s]);
-          for (var i = 0; i < nodes.length; i++) {
-            nodes[i].disabled = !enabled;
-            nodes[i].style.pointerEvents = enabled ? '' : 'none';
-            nodes[i].style.opacity = enabled ? '' : '0.5';
-          }
-        }
-        updateSendBtnPulse();
-      }
-
-      function getModuleProgress() {
-        var entries = (cardData.character_book || {}).entries || [];
-        var comments = entries.map(function(e) { return (e.comment || ''); });
-        var keywords = {
-          axiom: ['基础公理', '世界元数据', '世界观公理', '力量体系骨架'],
-          soft_rules: ['交互软规则', '互动选项', '叙事风格', '剧情引导'],
-          core_rules: ['核心铁则', '绝对禁止', '输出格式', 'AI身份'],
-          near_constraint: ['近场强约束', '当前局势', '即时状态', '临时任务'],
-          scene_mechanics: ['场景机制', '核心玩法', '世界规则', '战斗规则'],
-          entity_interact: ['实体交互', '重要角色', '势力与组织', '物品', '地点场景'],
-          narrative_bg: ['叙事背景', '故事发展', '文化与习俗', '历史事件'],
-          dynamic_adapt: ['动态适配', '引导机制', '互动选项', '状态栏'],
-          init_var: ['[InitVar]', '初始变量', 'InitVar', '变量列表'],
-          var_update_rule: ['变量更新规则', '变量输出格式', 'UpdateVariable', 'status_current_variable']
-        };
-        var result = {};
-        Object.keys(keywords).forEach(function(mod) {
-          var kws = keywords[mod];
-          result[mod] = comments.some(function(c) {
-            return kws.some(function(kw) { return c.indexOf(kw) >= 0; });
-          });
-        });
-        if (cardData.post_history_instructions && cardData.post_history_instructions.length > 0) {
-          result.core_rules = true;
-        }
-        if (cardData.extensions && cardData.extensions.depth_prompt && cardData.extensions.depth_prompt.prompt && cardData.extensions.depth_prompt.prompt.length > 0) {
-          result.dynamic_adapt = true;
-        }
-        return result;
-      }
-
-      function calcProgress() {
-        var score = 0;
-        if (cardData.name) score += 8;
-        if (cardData.description && cardData.description.length >= 400) score += 15;
-        else if (cardData.description && cardData.description.length >= 200) score += 10;
-        else if (cardData.description && cardData.description.length > 50) score += 5;
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length >= 4) {
-          if (cardData.first_mes && cardData.first_mes.length >= 500) score += 15;
-          else if (cardData.first_mes && cardData.first_mes.length >= 300) score += 8;
-        }
-        if (cardData.system_prompt && cardData.system_prompt.length >= 20) score += 5;
-        score += Math.min(entries.length * 5, 30);
-        var mp = getModuleProgress();
-        var modKeys = Object.keys(mp);
-        var doneCount = modKeys.filter(function(k) { return mp[k] === true; }).length;
-        score += doneCount * 5;
-        if (cardData.tags && cardData.tags.length >= 2) score += 5;
-        if (cardData.creator_notes && cardData.creator_notes.length >= 10) score += 2;
-        return Math.min(score, 100);
-      }
-
-      function updateProgress() {
-        progress = calcProgress();
-        var pl = doc.getElementById('phaseLabel');
-        if (pl) pl.textContent = progress + '%';
-        var cl = doc.getElementById('completionLabel');
-        if (cl) cl.textContent = progress + '%';
-      }
-      function setProgress(val) {
-        progress = Math.max(0, Math.min(100, val));
-        var pl = doc.getElementById('phaseLabel');
-        if (pl) pl.textContent = progress + '%';
-        var cl = doc.getElementById('completionLabel');
-        if (cl) cl.textContent = progress + '%';
-      }
-
-      // ===== 质检弹窗 =====
-      function showQualityCheck() {
-        if (!cardData.name && !cardData.description) {
-          showToast('还没有内容可以质检哦，先和AI聊聊吧', 'warning');
-          return;
-        }
-        var results = runQualityCheck(cardData);
-        var passCount = results.filter(function(r) { return r.pass; }).length;
-        var coreResults = results.filter(function(r) { return r.category !== '附加检查' && r.category !== 'MVU变量系统'; });
-        var corePass = coreResults.filter(function(r) { return r.pass; }).length;
-        var mvuResults = results.filter(function(r) { return r.category === 'MVU变量系统'; });
-        var mvuPass = mvuResults.filter(function(r) { return r.pass; }).length;
-        var h = '<div class="modal" id="qcModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">✅ 角色卡质检报告（' + coreResults.length + '项核心 + ' + mvuResults.length + '项MVU + ' + (results.length - coreResults.length - mvuResults.length) + '项附加）</h3>' +
-            '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">核心 ' + corePass + '/' + coreResults.length + ' 项达标' + (mvuResults.length > 0 ? ' · MVU ' + mvuPass + '/' + mvuResults.length + ' 项达标' : '') + ' · 全部 ' + passCount + '/' + results.length + ' 项达标</p>' +
-            '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + Math.round(corePass/coreResults.length*100) + '%"></div></div>' +
-            '<div class="modal-body" style="margin-top:10px">';
-        var categories = ['基础字段', '高价值字段', '世界书', '世界书高级', '正则脚本', '运行效果', 'MVU变量系统', '附加检查'];
-        var catColors = { '基础字段': '#d2a8ff', '高价值字段': '#f78166', '世界书': '#3fb950', '世界书高级': '#a371f7', '正则脚本': '#f0883e', '运行效果': '#d29922', 'MVU变量系统': '#58a6ff', '附加检查': '#8b949e' };
-        categories.forEach(function(cat) {
-          var catResults = results.filter(function(r) { return r.category === cat; });
-          if (catResults.length === 0) return;
-          var catPass = catResults.filter(function(r) { return r.pass; }).length;
-          h += '<div style="margin:8px 0 4px;font-size:.75em;font-weight:600;color:' + (catColors[cat] || '#8b949e') + ';border-bottom:1px solid #21262d;padding-bottom:3px">' + cat + '（' + catPass + '/' + catResults.length + '）</div>';
-          catResults.forEach(function(r) {
-            h += '<div class="qc-item ' + (r.pass ? 'pass' : 'fail') + '">' +
-              '<div class="qc-title ' + (r.pass ? 'qc-pass' : 'qc-fail') + '">' +
-                (r.pass ? '✅' : '❌') + ' ' + r.name +
-              '</div>' +
-              '<div class="qc-desc">' + r.desc + '</div>' +
-              '<div class="qc-fix">💡 ' + r.fix + '</div>' +
-            '</div>';
-          });
-        });
-        h += '</div>' +
-          '<div class="modal-actions">' +
-            '<button class="btn btn-ghost" id="qcCloseBtn">关闭</button>' +
-            '<button class="btn btn-primary" id="qcOptBtn">🔧 一键优化未达标项</button>' +
-          '</div>' +
-        '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
-        doc.body.appendChild(modalEl);
-        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
-        doc.getElementById('qcCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-        var optBtn = doc.getElementById('qcOptBtn');
-        if (optBtn) {
-          optBtn.addEventListener('click', function() {
-            modalEl.remove();
-            var failedItems = results.filter(function(r) { return !r.pass; });
-            var failedNames = failedItems.map(function(r) { return r.name; });
-            var optInstructions = buildOptimizeInstructions(failedItems);
-            showOptimizeModal(failedNames.join('、'), optInstructions);
-          });
-        }
-      }
-
-      // ===== 权重可视化预览（规范4.4） =====
-      function showWeightVisual() {
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length === 0) {
-          showToast('还没有世界书条目，先和AI聊聊生成内容吧', 'warning');
-          return;
-        }
-        var permToken = 0, trigToken = 0, totalToken = 0;
-        entries.forEach(function(e) {
-          var tk = countTokens(e.content || '');
-          totalToken += tk;
-          if (e.constant) permToken += tk; else trigToken += tk;
-        });
-        var phiToken = countTokens(cardData.post_history_instructions || '');
-        permToken += phiToken;
-
-        var h = '<div class="modal" id="wvModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">📊 权重可视化预览</h3>' +
-            '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">展示每个条目的权重等级、触发逻辑、Token占用（对齐ST注入权重层级）</p>' +
-            '<div class="wv-summary">' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#3fb950">' + entries.length + '</span><span class="wv-stat-lbl">条目总数</span></div>' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#f85149">' + permToken + '</span><span class="wv-stat-lbl">常驻Token</span></div>' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d2a8ff">' + trigToken + '</span><span class="wv-stat-lbl">触发Token</span></div>' +
-              '<div class="wv-stat"><span class="wv-stat-val" style="color:#d29922">' + totalToken + '</span><span class="wv-stat-lbl">总Token</span></div>' +
-            '</div>' +
-            '<div class="wv-legend">';
-        var legendItems = [
-          { level: '最高', color: '#f85149', desc: 'post_history/铁则' },
-          { level: '极高', color: '#ff7b72', desc: 'position=2/状态栏' },
-          { level: '中高', color: '#d29922', desc: 'position=4 触发' },
-          { level: '中', color: '#3fb950', desc: '概率触发/动态' },
-          { level: '低', color: '#8b949e', desc: 'position=1 常驻' },
-          { level: '极低', color: '#6e7681', desc: 'position=0 常驻' }
-        ];
-        legendItems.forEach(function(l) {
-          h += '<span class="wv-legend-item"><span class="wv-legend-dot" style="background:' + l.color + '"></span>' + l.level + '(' + l.desc + ')</span>';
-        });
-        h += '</div>' +
-            '<div class="modal-body">';
-
-        // 按分组展示
-        var groupOrder = ['常驻体系', '触发体系', '叙事', '动态系统', '自定义'];
-        var groupColors = { '常驻体系': '#3fb950', '触发体系': '#d2a8ff', '叙事': '#f0883e', '动态系统': '#f78166', '自定义': '#8b949e' };
-        groupOrder.forEach(function(g) {
-          var groupEntries = entries.filter(function(e) {
-            var eg = getDisplayGroup(e);
-            return eg === g;
-          });
-          if (groupEntries.length === 0) return;
-          var groupTok = 0;
-          groupEntries.forEach(function(e) { groupTok += countTokens(e.content || ''); });
-          h += '<div class="wv-group-header"><span style="color:' + (groupColors[g] || '#8b949e') + '">' + g + '</span><span class="wv-group-count">' + groupEntries.length + '条 · ' + groupTok + 'T</span></div>';
-          // 按权重排序（order越大权重越低，先展示高权重=order小）
-          groupEntries.sort(function(a, b) { return (a.insertion_order || 100) - (b.insertion_order || 100); });
-          groupEntries.forEach(function(e, idx) {
-            var comment = e.comment || ('条目' + (idx + 1));
-            var m = comment.match(/^<([^>]+)>/);
-            var prefixKey = m ? m[1] : '';
-            var wl = WEIGHT_LEVELS[prefixKey] || { level: '中', color: '#3fb950', desc: '自定义' };
-            var tk = countTokens(e.content || '');
-            var ext = e.extensions || {};
-            var tmpl = getEntryTemplate(comment);
-            var isConst = e.constant !== undefined ? e.constant : (tmpl ? tmpl.constant : false);
-            var pos = ext.position !== undefined ? ext.position : (tmpl ? tmpl.position : 4);
-            var depth = ext.depth !== undefined ? ext.depth : (tmpl ? tmpl.depth : 4);
-            var sticky = ext.sticky || 0;
-            var cd = ext.cooldown || 0;
-            var pr = ext.prevent_recursion;
-            var prob = ext.probability !== undefined ? ext.probability : 100;
-            var sl = ext.selectiveLogic || 0;
-
-            h += '<div class="wv-entry" style="border-left-color:' + wl.color + '">' +
-              '<div class="wv-entry-header">' +
-                '<span class="wv-entry-name" title="' + escHtml(comment) + '">' + escHtml(comment) + '</span>' +
-                '<span class="wv-entry-level" style="background:' + wl.color + '20;color:' + wl.color + ';border:1px solid ' + wl.color + '50">' + wl.level + '</span>' +
-                '<span class="wv-entry-token">' + tk + 'T</span>' +
-              '</div>' +
-              '<div class="wv-entry-meta">' +
-                '<span class="wv-tag ' + (isConst ? 'const' : 'trig') + '">' + (isConst ? '常驻' : '触发') + '</span>' +
-                '<span class="wv-tag">pos=' + pos + '</span>' +
-                (!isConst ? '<span class="wv-tag">depth=' + depth + '</span>' : '') +
-                (sticky ? '<span class="wv-tag dyn">sticky</span>' : '') +
-                (cd ? '<span class="wv-tag warn">CD=' + cd + '</span>' : '') +
-                (pr ? '<span class="wv-tag const">防递归</span>' : '') +
-                (prob < 100 ? '<span class="wv-tag warn">' + prob + '%</span>' : '') +
-                (sl ? '<span class="wv-tag trig">SL=' + sl + '</span>' : '') +
-                '<span class="wv-tag" style="color:#484f58" title="' + escHtml(wl.desc) + '">' + escHtml(wl.desc) + '</span>' +
-              '</div>' +
-            '</div>';
-          });
-        });
-
-        h += '</div>' +
-          '<div class="modal-actions">' +
-            '<button class="btn btn-ghost" id="wvCloseBtn">关闭</button>' +
-          '</div>' +
-        '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
-        doc.body.appendChild(modalEl);
-        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
-        doc.getElementById('wvCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-      }
-
-      // ===== 分组管理（规范4.4：分组自动适配） =====
-      function showGroupMgr() {
-        var entries = (cardData.character_book || {}).entries || [];
-        if (entries.length === 0) {
-          showToast('还没有世界书条目', 'warning');
-          return;
-        }
-        var groups = {};
-        entries.forEach(function(e) {
-          var g = getDisplayGroup(e);
-          if (!groups[g]) groups[g] = [];
-          groups[g].push(e);
-        });
-        var groupColors = { '常驻体系': '#3fb950', '触发体系': '#d2a8ff', '叙事': '#f0883e', '动态系统': '#f78166', '自定义': '#8b949e' };
-        var h = '<div class="modal" id="groupModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🗂️ 分组管理</h3>' +
-            '<p style="font-size:.72em;color:#8b949e;margin-bottom:8px">每个体系对应一个世界书分组，支持批量开关（对齐ST分组管理功能）</p>' +
-            '<div class="group-mgr-list">';
-        Object.keys(groups).forEach(function(g) {
-          var gEntries = groups[g];
-          var gTok = 0;
-          gEntries.forEach(function(e) { gTok += countTokens(e.content || ''); });
-          var allEnabled = gEntries.every(function(e) { return e.enabled !== false; });
-          h += '<div class="group-mgr-item">' +
-            '<span class="gm-color" style="background:' + (groupColors[g] || '#8b949e') + '"></span>' +
-            '<span class="gm-name">' + escHtml(g) + '</span>' +
-            '<span class="gm-count">' + gEntries.length + '条 · ' + gTok + 'T</span>' +
-            '<button class="gm-toggle ' + (allEnabled ? 'on' : '') + '" data-group="' + escHtml(g) + '">' + (allEnabled ? '已启用' : '已禁用') + '</button>' +
-          '</div>';
-        });
-        h += '</div>' +
-          '<div class="modal-actions">' +
-            '<button class="btn btn-ghost" id="groupCloseBtn">关闭</button>' +
-            '<button class="btn btn-primary" id="groupReassignBtn">🔄 按前缀重新分组</button>' +
-          '</div>' +
-        '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var modalEl = tmp.firstElementChild;
-        doc.body.appendChild(modalEl);
-        modalEl.addEventListener('click', function(e) { if (e.target === modalEl) modalEl.remove(); });
-        doc.getElementById('groupCloseBtn').addEventListener('click', function() { modalEl.remove(); });
-        var toggles = modalEl.querySelectorAll('.gm-toggle');
-        for (var i = 0; i < toggles.length; i++) {
-          toggles[i].addEventListener('click', function() {
-            var g = this.getAttribute('data-group');
-            var turnOn = !this.classList.contains('on');
-            entries.forEach(function(e) {
-              var eg = getDisplayGroup(e);
-              if (eg === g) e.enabled = turnOn;
-            });
-            this.classList.toggle('on', turnOn);
-            this.textContent = turnOn ? '已启用' : '已禁用';
-            saveToStorage();
-            renderPreview();
-            showToast((turnOn ? '已启用' : '已禁用') + '分组：' + g, 'success');
-          });
-        }
-        var reassignBtn = doc.getElementById('groupReassignBtn');
-        if (reassignBtn) reassignBtn.addEventListener('click', function() {
-          entries.forEach(function(e) {
-            var tmpl = getEntryTemplate(e.comment || '');
-            if (tmpl) {
-              if (!e.extensions) e.extensions = {};
-              e.extensions.group = tmpl.group;
-            }
-          });
-          saveToStorage();
-          modalEl.remove();
-          showGroupMgr();
-          showToast('已按条目前缀重新分配分组', 'success');
-        });
-      }
-
-      // ===== 优化指令映射（质检未达标项→AI优化指令） =====
-      function buildOptimizeInstructions(failedItems) {
-        // 每条指令统一为「问题 · 影响 · 修复」三段式，便于 AI 精准理解与执行
-        // field 字段用于在弹窗中按字段分组展示，并驱动 AI 优化目标字段
-        var instructionMap = {
-          // === 基础字段 ===
-          '世界/角色名称': { field: 'name', instr: '问题：世界/角色名称为空\n影响：无法识别卡片主体\n修复：设置一个简洁有力的世界名称（如「青云大陆」），不超过15字' },
-          '世界观描述 ≥400字': { field: 'description', instr: '问题：世界观描述不足400字\n影响：世界背景单薄，AI缺乏设定锚点\n修复：补充到≥400字，覆盖世界核心设定、地理、历史、文化、社会结构，语言生动具体避免抽象' },
-          '性格描述（世界模式留空）': { field: 'personality', instr: '问题：世界模式下 personality 非空\n影响：与世界观模式规范冲突，可能干扰AI\n修复：清空 personality 字段（世界模式人设由世界书条目承载）' },
-          '场景设定（世界模式留空）': { field: 'scenario', instr: '问题：世界模式下 scenario 非空\n影响：与世界观模式规范冲突\n修复：清空 scenario 字段（场景由世界书触发条目动态提供）' },
-          '开场白 ≥500字': { field: 'first_mes', instr: '问题：开场白不足500字\n影响：代入感弱，玩家难以进入情境\n修复：扩展到500-800字，结构：场景描写→动作驱动→内心独白→自然对话→结尾留钩。必须完整文本，禁止占位符' },
-          '系统指令 ≤50字（仅AI身份定位）': { field: 'system_prompt', instr: '问题：system_prompt 过长或为空\n影响：挤占上下文，核心规则权重不足\n修复：精简到≤50字，仅保留AI身份定位一句话（如"你是某世界的叙事AI"）；核心规则迁移到 post_history_instructions' },
-          '核心铁则 post_history_instructions ≤100字': { field: 'post_history_instructions', instr: '问题：post_history_instructions 未设或过长\n影响：缺少最高权重位的硬性约束，AI遵循度下降\n修复：设置≤100字的核心铁则，分号分隔短句（如"保持神秘；拒绝透露秘密；偶尔说谜语"）。这是权重最高的位置，遵循度是system_prompt的2倍以上' },
-          '标签数量 2-12个': { field: 'tags', instr: '问题：标签数量不在2-12范围\n影响：分类与检索困难\n修复：设置2-12个简短标签，精准描述世界题材和风格（如"奇幻""中世纪""魔法"）' },
-          // === 高价值字段 ===
-          'mes_example 对话示例（Few-shot）': { field: 'mes_example', instr: '问题：缺少 mes_example 对话示例\n影响：AI缺少 Few-shot 示范，输出风格不稳定\n修复：生成1-2组对话示例，格式 <START>用户消息<END>\\n<START>助手消息<END>，展示NPC性格和对话风格' },
-          'alternate_greetings 3个差异化开局': { field: 'alternate_greetings', instr: '问题：备用开局不足3个\n影响：重玩价值低\n修复：生成至少3个不同身份/难度/场景的备用开场白，每个500字左右' },
-          'depth_prompt 新手引导（depth=0）': { field: 'depth_prompt', instr: '问题：缺少 depth_prompt 新手引导\n影响：新玩家不知道如何互动\n修复：生成 depth_prompt.prompt 新手引导内容，depth 默认0（对所有玩家生效）' },
-          'regex_scripts 状态同步正则': { field: 'regex_scripts', instr: '问题：缺少 regex_scripts 正则脚本\n影响：无法实现状态格式化、数值高亮等动态效果\n修复：生成3-5条实用脚本，覆盖状态格式化、行动标签、数值高亮、表情转换' },
-          // === 世界书基础 ===
-          '条目数 12-30条': { field: 'entries', instr: '问题：世界书条目数不在12-30范围\n影响：覆盖不全或Token浪费\n修复：调整到12-30条，覆盖基础公理、核心铁则、近场约束、场景机制、实体交互、叙事背景、动态系统等模块' },
-          '触发词覆盖率 ≥50%': { field: 'entries', instr: '问题：触发词覆盖率不足50%\n影响：触发条目无法被正确激活\n修复：为≥50%的条目设置精准 keys 触发词，避免泛用词（如"的""是"）' },
-          '条目内容 ≥250字': { field: 'entries', instr: '问题：超过半数条目内容不足250字\n影响：信息密度低，触发后AI可参考内容不足\n修复：将≥50%的条目内容扩充到≥250字，提供完整自包含的信息' },
-          '条目命名规范 ≥50%': { field: 'entries', instr: '问题：条目命名不规范\n影响：难以识别条目职能与权重层级\n修复：为≥50%的条目使用规范前缀：<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>；MVU条目用[InitVar]前缀' },
-          '权重合理性：核心规则在高权重位': { field: 'entries', instr: '问题：核心规则未在高权重位\n影响：AI容易忽略核心规则\n修复：核心规则必须放在 post_history_instructions 或 <核心铁则> 条目（高权重位），近场约束放适当位置' },
-          'content自包含性（无上下文依赖）': { field: 'entries', instr: '问题：条目content含上下文依赖词\n影响：条目单独触发时信息不完整\n修复：移除"如上所述""见上文""前文提到"等词，确保每条content都是完整独立的信息' },
-          // === 世界书高级 ===
-          '递归链条：delay_until_recursion': { field: 'entries', instr: '问题：未使用递归链条\n影响：无法实现"提到A自动带出A背景"\n修复：为叙事类条目开启 extensions.delay_until_recursion=true，实现关联触发' },
-          '分组机制：group分组': { field: 'entries', instr: '问题：未使用group分组\n影响：场景变体/难度分层无法互斥\n修复：为场景变体/难度分层/时间分支设置 extensions.group 分组（同组仅注入1条实现互斥）' },
-          '次级键过滤：secondary_keys + selectiveLogic': { field: 'entries', instr: '问题：未使用次级键过滤\n影响：复杂条件触发不精准\n修复：为复杂条件条目设置 secondary_keys 配合 extensions.selectiveLogic（0=AND_ANY,1=NOT_ALL,2=NOT_ANY,3=AND_ALL）' },
-          '概率事件：probability < 100': { field: 'entries', instr: '问题：未使用概率触发\n影响：缺少随机性与惊喜感\n修复：为随机天气/彩蛋/遭遇条目设置 extensions.useProbability=true 且 extensions.probability<100' },
-          '正则触发键': { field: 'entries', instr: '问题：未使用正则触发键\n影响：无法精确匹配说话者\n修复：为需要精确匹配的条目使用正则键，如 keys:["/^\\\\x01{{user}}:.*?/i"]' },
-          '组评分 use_group_scoring': { field: 'entries', instr: '问题：未使用组评分\n影响：大分组匹配精准度不足\n修复：为大分组条目开启 extensions.use_group_scoring=true' },
-          'sticky/cooldown冲突检查': { field: 'entries', instr: '问题：条目同时设置sticky和cooldown\n影响：逻辑冲突（sticky持续存在 vs cooldown间歇触发）\n修复：移除其中一个，按需保留单一机制' },
-          'position配置合理性': { field: 'entries', instr: '问题：position配置有误\n影响：注入位置异常\n修复：constant条目 extensions.position≤1；position=6需配depth+role；position=7需配outlet_name' },
-          // === 正则脚本 ===
-          '脚本功能单一': { field: 'regex_scripts', instr: '问题：正则脚本功能混合\n影响：难以维护与调试\n修复：每个脚本只做一件事，复杂替换拆分成多个简单脚本' },
-          '正则标志正确（g全局匹配）': { field: 'regex_scripts', instr: '问题：findRegex缺少g标志\n影响：只替换第一个匹配\n修复：findRegex 包含g标志（如/pattern/gi），中文场景加i' },
-          '非贪婪匹配（.*?）': { field: 'regex_scripts', instr: '问题：使用贪婪匹配.*或.+\n影响：匹配过多内容\n修复：改用.*?或.+?非贪婪匹配' },
-          'placement配置检查': { field: 'regex_scripts', instr: '问题：未设置placement\n影响：脚本不知在哪个位置执行\n修复：设置placement数组，[0]=用户输入、[1]=AI回复、[0,1]=两者都处理' },
-          'substituteRegex范围（0-2）': { field: 'regex_scripts', instr: '问题：substituteRegex超出0-2范围\n影响：宏替换行为异常\n修复：设为0(不替换宏)/1(原始替换)/2(转义替换)，一般用1' },
-          '状态栏脚本runOnEdit': { field: 'regex_scripts', instr: '问题：状态栏脚本未开启runOnEdit\n影响：编辑消息时状态栏不刷新\n修复：状态栏类脚本设置 runOnEdit=true' },
-          // === 运行效果 ===
-          '常驻Token总量 ≤500': { field: 'entries', instr: '问题：常驻Token总量超过500\n影响：挤占上下文预算，长对话记忆受损\n修复：将非核心内容从constant条目移到触发条目，控制常驻Token≤500' },
-          '递归安全：实体类条目开启prevent_recursion': { field: 'entries', instr: '问题：实体类条目未开启prevent_recursion\n影响：链式触发导致Token爆炸\n修复：为<实体交互>、<重要角色>、<地点场景>等条目开启 extensions.prevent_recursion=true' },
-          '冷却防抖：场景类条目开启cooldown': { field: 'entries', instr: '问题：场景类条目未设置cooldown\n影响：内容刷屏\n修复：为<场景机制>、<核心玩法>等条目设置 extensions.cooldown=3' },
-          // === MVU变量系统 ===
-          'MVU四大核心条目完整': { field: 'entries', instr: '问题：MVU四大核心条目不完整\n影响：变量系统无法正常运作\n修复：生成完整四件套——\n  1. [InitVar]初始变量：YAML格式定义所有变量初始值（缩进表示层级，如 白娅:\\n  依存度: 35）\n  2. 变量列表：固定内容 "---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>"\n  3. [mvu_update]变量更新规则：YAML格式，含 type/range/check 三字段\n  4. [mvu_update]变量输出格式：定义 <UpdateVariable> 输出格式，采用 JSON Patch 标准（replace/delta/insert/remove/move 操作）' },
-          '[InitVar]条目enabled=false': { field: 'entries', instr: '问题：[InitVar]条目 enabled=true\n影响：MVU不会读取已开启的initvar条目，导致变量初始化失败\n修复：将 [InitVar] 条目的 enabled 改为 false（必须禁用，MVU只读取禁用的initvar条目进行初始化）' },
-          '变量列表含format_message_variable宏': { field: 'entries', instr: '问题：变量列表条目缺少 {{format_message_variable::stat_data}} 宏\n影响：LLM无法读取当前变量值，变量更新无依据\n修复：变量列表条目内容必须包含宏，固定格式：\n  ---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n  注意：禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体' }
-        };
-
-        // 按字段分组，便于 AI 按字段批量处理
-        var groups = {};
-        failedItems.forEach(function(item) {
-          var entry = instructionMap[item.name];
-          if (!entry) return;
-          if (!groups[entry.field]) groups[entry.field] = [];
-          groups[entry.field].push({ name: item.name, instr: entry.instr });
-        });
-
-        // 输出结构化 Markdown，AI 可按字段定位与执行
-        var lines = [];
-        lines.push('# 待优化项清单（按字段分组）');
-        lines.push('');
-        lines.push('共 ' + failedItems.length + ' 项未达标，需优化字段：' + Object.keys(groups).join('、'));
-        lines.push('');
-        Object.keys(groups).forEach(function(field) {
-          lines.push('## 字段：' + field);
-          groups[field].forEach(function(item, idx) {
-            lines.push('');
-            lines.push('### ' + (idx + 1) + '. ' + item.name);
-            lines.push(item.instr);
-          });
-          lines.push('');
-        });
-        lines.push('## 执行要求');
-        lines.push('- 严格按上述"修复"方法执行，不要遗漏任何一项');
-        lines.push('- 输出 JSON 代码块，只包含被优化的字段（entries/depth_prompt/regex_scripts 放顶层，不嵌套）');
-        lines.push('- entries 优化时优先用相同 comment 覆盖现有条目，不足再新增');
-        lines.push('- MVU 相关条目必须遵守：[InitVar] enabled=false，变量列表必须含 {{format_message_variable::stat_data}} 宏');
-        return lines.join('\n');
-      }
-
-      // ===== 优化弹窗 =====
-      var selectedOptFields = [];
-      function showOptimizeModal(presetReq, optInstructions) {
-        if (!cardData.name && !cardData.description) {
-          showToast('还没有内容可以优化哦', 'warning');
-          return;
-        }
-        var fields = [
-          { key: 'name', label: '🌍 世界名称' },
-          { key: 'description', label: '📜 世界观描述' },
-          { key: 'first_mes', label: '🎬 开场白' },
-          { key: 'system_prompt', label: '⚡ 系统指令' },
-          { key: 'post_history_instructions', label: '🔐 核心铁则' },
-          { key: 'mes_example', label: '💬 对话示例' },
-          { key: 'alternate_greetings', label: '🎭 备用开局' },
-          { key: 'depth_prompt', label: '🎮 新手引导' },
-          { key: 'regex_scripts', label: '🔄 状态正则' },
-          { key: 'tags', label: '🏷️ 标签' },
-          { key: 'entries', label: '📖 世界书条目' }
-        ];
-        selectedOptFields = [];
-        var h = '<div class="modal" id="optModal">' +
-          '<div class="modal-content">' +
-            '<h3 style="color:#d2a8ff;margin-bottom:4px;font-size:1em">🔧 AI 角色卡优化</h3>' +
-            '<p style="font-size:.78em;color:#8b949e;margin-bottom:8px">选择要优化的字段，AI将智能优化并展示对比</p>' +
-            '<div class="opt-field-select">';
-        fields.forEach(function(f) {
-          h += '<span class="opt-field-tag" data-key="' + f.key + '">' + f.label + '</span>';
-        });
-        h += '</div>' +
-            '<textarea class="chat-input" id="optCustom" placeholder="补充优化要求（可选），如：让开场白更有悬疑感、增加仙侠氛围..." rows="3" style="margin:6px 0;min-height:70px">' + (optInstructions || '') + (presetReq ? ('\n\n' + presetReq) : '') + '</textarea>' +
-            '<div id="optProgress" style="display:none;text-align:center;padding:12px;color:#d2a8ff;font-size:.85em"><span class="typing" style="display:inline"><span>●</span><span>●</span><span>●</span></span> AI正在优化...</div>' +
-            '<div id="optResult" class="modal-body" style="display:none"></div>' +
-            '<div class="modal-actions">' +
-              '<button class="btn btn-ghost" id="optCloseBtn">关闭</button>' +
-              '<button class="btn btn-primary" id="startOptBtn">🚀 开始优化</button>' +
-            '</div>' +
-          '</div></div>';
-        var tmp = doc.createElement('div');
-        tmp.innerHTML = h;
-        var optModalEl = tmp.firstElementChild;
-        doc.body.appendChild(optModalEl);
-        optModalEl.addEventListener('click', function(e) { if (e.target === optModalEl) optModalEl.remove(); });
-        doc.getElementById('optCloseBtn').addEventListener('click', function() { optModalEl.remove(); });
-
-        var tags = doc.querySelectorAll('.opt-field-tag');
-        for (var i = 0; i < tags.length; i++) {
-          tags[i].addEventListener('click', function() {
-            this.classList.toggle('selected');
-            var k = this.getAttribute('data-key');
-            var idx = selectedOptFields.indexOf(k);
-            if (idx >= 0) selectedOptFields.splice(idx, 1);
-            else selectedOptFields.push(k);
-          });
-        }
-        doc.getElementById('startOptBtn').addEventListener('click', startOptimize);
-      }
-
-      async function startOptimize() {
-        if (selectedOptFields.length === 0) { showToast('请先点击上方的字段标签选择要优化的字段', 'warning'); return; }
-        if (isGenerating) { showToast('AI正在处理中，请稍候...', 'warning'); return; }
-        isGenerating = true;
-        var customReq = doc.getElementById('optCustom').value.trim();
-        var prog = doc.getElementById('optProgress');
-        var res = doc.getElementById('optResult');
-        var btn = doc.getElementById('startOptBtn');
-        if (prog) prog.style.display = 'block';
-        if (btn) btn.disabled = true;
-
-        try {
-          var cardStr = JSON.stringify(buildExportCard(cardData), null, 2);
-          var optPrompt = '你是SillyTavern角色卡优化专家，熟悉chara_card_v3格式和世界书、正则脚本规范。请针对指定字段优化角色卡。\n\n' +
-            '=== 任务目标 ===\n' +
-            '只优化以下字段，其他字段保持不变：' + selectedOptFields.join(', ') + '\n\n' +
-            (customReq ? '=== 用户额外要求 ===\n' + customReq + '\n\n' : '') +
-            '=== 字段优化细则（必须严格遵守） ===\n' +
-            '【description 世界观描述】\n' +
-            '- 字数：≥400字\n' +
-            '- 内容：包含世界核心设定、地理、历史、文化、社会结构等，提升沉浸感\n' +
-            '- 语言：生动具体，避免抽象描述\n\n' +
-            '【first_mes 开场白】\n' +
-            '- 字数：500-800字\n' +
-            '- 结构：场景描写 → 动作驱动 → 内心独白 → 自然对话 → 结尾留钩\n' +
-            '- 必须包含完整文本，严禁使用占位符\n\n' +
-            '【system_prompt 系统指令】\n' +
-            '- 字数：≤50字\n' +
-            '- 内容：仅AI身份定位（如"你是一个神秘的酒馆老板"）\n' +
-            '- 核心规则必须放在post_history_instructions\n\n' +
-            '【post_history_instructions 核心铁则】\n' +
-            '- 字数：≤100字\n' +
-            '- 内容：极度精简的核心规则，放在最高权重位置\n' +
-            '- 格式：分号分隔的短句，如"保持神秘；拒绝透露秘密；偶尔说谜语"\n\n' +
-            '【mes_example 对话示例】\n' +
-            '- 数量：1-2组\n' +
-            '- 格式：<START>用户消息<END>\n<START>助手消息<END>\n' +
-            '- 作用：展示NPC性格和对话风格（Few-shot）\n\n' +
-            '【alternate_greetings 备用开局】\n' +
-            '- 数量：至少3个\n' +
-            '- 差异化：不同身份/难度/场景的开场白\n' +
-            '- 提升重玩价值\n\n' +
-            '【depth_prompt 新手引导】\n' +
-            '- prompt：新手引导内容，教玩家如何互动\n' +
-            '- depth：默认0（表示对所有玩家生效）\n\n' +
-            '【regex_scripts 状态同步正则】\n' +
-            '- 数量：3-5条实用脚本\n' +
-            '- 格式规范：\n' +
-            '  * findRegex：/模式/flags格式（必须包含g全局匹配，中文加i忽略大小写）\n' +
-            '  * replaceString：支持$1-$9捕获组、{{match}}宏、$&完整匹配\n' +
-            '  * placement：[0]=用户输入，[1]=AI回复，[0,1]=两者都处理\n' +
-            '  * substituteRegex：0=不替换宏，1=原始替换，2=转义替换（一般用1）\n' +
-            '  * runOnEdit：true=编辑消息时重新执行（状态栏类脚本建议开启）\n' +
-            '  * scriptName：简短描述脚本功能\n' +
-            '- 常用场景：\n' +
-            '  * 状态栏格式化：findRegex="/<status>(.*?)</status>/gi", replaceString="**状态：**$1"\n' +
-            '  * 行动标签：findRegex="/<action>(.*?)</action>/gi", replaceString="**行动：**$1"\n' +
-            '  * 数值高亮：findRegex="/(\\d+)(点|级|年|%)/gi", replaceString="**$1$2**"\n' +
-            '  * 表情转换：findRegex="/\\[笑\\]/gi", replaceString="😄"\n\n' +
-            '【tags 标签】\n' +
-            '- 数量：2-12个\n' +
-            '- 内容：精准描述世界题材和风格\n' +
-            '- 格式：简短词语，如"奇幻""中世纪""魔法"\n\n' +
-            '【entries 世界书条目】\n' +
-            '- 数量：12-30条\n' +
-            '- 命名规范：使用<基础公理>、<核心铁则>、<近场强约束>、<场景机制>、<实体交互>、<叙事背景>、<动态系统>等前缀\n' +
-            '- content要求：≥250字，完整自包含，严禁使用"如上所述""见上文"等上下文依赖词\n' +
-            '- keys：精准触发词，避免泛用词（如"的""是"）\n' +
-            '- 核心配置：\n' +
-            '  * constant=true：常驻条目（核心规则、基础公理），position应≤1\n' +
-            '  * constant=false：触发条目，position=4（默认）\n' +
-            '  * prevent_recursion：实体类条目必须开启，防止链式触发\n' +
-            '  * cooldown：场景类条目建议设为3，防止刷屏\n' +
-            '  * group/group_weight：场景变体使用分组实现互斥\n' +
-            '  * delay_until_recursion：叙事类条目开启，实现关联触发\n' +
-            '  * probability：随机事件设为<100\n' +
-            '  * secondary_keys+selectiveLogic：复杂条件控制\n' +
-            '- 优化策略：优先优化现有条目（用相同comment覆盖），不足则补充新条目\n\n' +
-            '⚠️⚠️⚠️【entries 优化铁律 - 违反则优化失败=旧内容残留=用户骂你】\n' +
-            '1. 优化≠追加！优化=覆盖/替换旧条目，而不是只加新条目！\n' +
-            '2. 修改条目：新条目的 comment 必须与旧条目的 comment「完全相同=字符级匹配」（空格标点都不能变）\n' +
-            '3. 重写条目：必须先删除旧条目（_action:delete），再加新条目；或者确保新条目 comment 完全一致\n' +
-            '4. 精简条目：如果要求"精简N条"，必须明确用 _delete / _action:delete 删除多出的条目\n' +
-            '5. 同前缀条目重复：若优化后同模块（如<核心铁则>）的条目数超标，必须删除旧的、质量较低的条目\n' +
-            '6. 最推荐的写法（AI最容易写对，系统支持最好）：\n' +
-            '   替换条目=先写 _action:delete 条目删旧的，再写新条目（新comment可以与旧的不同）\n' +
-            '   例：\n' +
-            '   "entries": [\n' +
-            '     { "_action":"delete", "comment":"<这里粘贴精确旧comment>" },\n' +
-            '     { "comment":"<新comment或相同comment>", "content":"...新内容...", "keys":[...] }\n' +
-            '   ]\n\n' +
-            '【MVU 变量系统条目（仅当优化 entries 且卡内已含 MVU 条目时适用）】\n' +
-            'MVU 四大核心条目必须成套存在，缺一不可：\n' +
-            '1. [InitVar]初始变量（comment 以 [InitVar] 开头）\n' +
-            '   - enabled 必须 false（MVU 只读取禁用的 initvar 条目进行初始化，true 会失效）\n' +
-            '   - content 为 YAML 格式，缩进表示层级，定义所有变量的初始值\n' +
-            '   - 示例：\n     世界:\n       当前时间: 开局\n       当前地点: 待定\n     主角:\n       体力值: 100\n       状态: 进行中\n     同桌:\n       好感度: 0\n' +
-            '2. 变量列表（comment 含"变量列表"）\n' +
-            '   - content 必须包含宏 {{format_message_variable::stat_data}}（否则 LLM 无法读取当前变量值）\n' +
-            '   - 固定格式：---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\n' +
-            '   - 禁止写成 {{null}}、{{get_message_variable::stat_data}} 等变体\n' +
-            '3. 变量更新规则（comment 含"变量更新规则"）\n' +
-            '   - 定义每个变量在什么条件下更新、更新成什么值\n' +
-            '4. 变量输出格式（comment 含"变量输出格式"，建议加 [mvu_update] 前缀）\n' +
-            '   - 定义 <UpdateVariable> 输出格式，采用 JSON Patch (RFC 6902) 标准\n' +
-            '   - 支持操作：replace(替换值)/delta(数值增减)/insert(插入)/remove(删除)/move(移动)\n' +
-            '   - AI 输出示例：{ "op": "replace", "path": "/主角/体力值", "value": 80 }, { "op": "delta", "path": "/同桌/好感度", "value": 5 }\n' +
-            '注意：MVU 脚本（bundle.js）、变量结构脚本（zod schema）、正则1-5、<StatusPlaceHolderImpl/> 占位符均由导出时自动注入，AI 无需生成\n' +
-            '⚠️但正则6（美化状态栏）必须由AI生成！严格按以下UI/UX规范生成，美观度对齐参考卡片，严禁敷衍：\n' +
-            '  · 【配置固定】findRegex="/<StatusPlaceHolderImpl\\\\/>/g", placement=[2], markdownOnly=true, promptOnly=false, runOnEdit=true, substituteRegex=0\n' +
-            '  · 【包裹格式】完整HTML结构：<!doctype html>→html→head(style)→body(script type=module)，用```html代码块包裹\n' +
-            '  · 【读变量】getAllVariables() + _.get(allVars,"stat_data",{})（不要用Mvu.getVar，有时序失效）\n' +
-            '  · 【异步等待】await waitGlobalInitialized(\'Mvu\') 后必须绑定两个事件：VARIABLE_INITIALIZED + VARIABLE_UPDATE_ENDED（缺一不可）\n' +
-            '  · 【异常捕获】$(errorCatched(init)) 包裹\n' +
-            '  · 【递归渲染规范（核心！严禁只遍历一层）】function renderTree(obj, level) { level = level || 0; } 跳过 key.startsWith(\'_\')/(\'$\') 隐藏变量\n' +
-            '    - typeof==="number" → .value-number 主题色显示；布尔值 → value-true ✓ / value-false ✕（绿/红分色，不用emoji✅❌）\n' +
-            '    - 嵌套对象 → 先flush为.stat-grid，再输出.category-title（▸图标+分隔线），然后递归 renderTree(value, level+1) 并 .indent-N 缩进\n' +
-            '    - 数组 Array.isArray(value) → .value-text 显示 [a, b, c]；其他 → .value-text\n' +
-            '  · 【配色（核心！必须用CSS变量）】推荐低饱和柔色系：深色毛玻璃主题 --card-bg:rgba(30,35,45,0.82);backdrop-filter:blur(6px); 配--accent-blue:#93c5fd / --accent-green:#86efac / --accent-red:#fca5a5 / --text-sub:#94a3b8\n' +
-            '  · 【布局（核心！严禁平铺直叙）】必须用Grid响应式：.stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:4px 16px; }\n' +
-            '    - .category-title 分类标题（font-weight:600 + 分隔线 + ▸）\n' +
-            '    - .indent-1/2/3/4 { padding-left:8/20/32/44px } 按嵌套深度缩进\n' +
-            '    - .stat-item flex+justify-content:space-between + align-items:flex-start + gap:8px + .hover-bg 高亮\n' +
-            '  · 【动效（点睛）】.loading-state 文本居中 + @keyframes breathe呼吸动画(opacity 0.5↔0.9)；.flash-update + @keyframes fadeIn(0.6→1) + setTimeout 300ms 移除；transition: 0.2s ease\n' +
-            '  · 【输出前必查自查清单】Grid布局✓、分类标题✓、indent缩进类✓、hover高亮✓、Array处理✓、两个事件绑定✓、flash更新动画✓、loading动画✓\n\n' +
-            '=== 输出格式 ===\n' +
-            '只输出```json代码块，包含优化后的字段。\n' +
-            '规则：\n' +
-            '1. entries字段直接放在顶层，不需要嵌套在character_book中\n' +
-            '2. depth_prompt和regex_scripts直接放在顶层，不需要嵌套在extensions中\n' +
-            '3. 只包含被优化的字段，其他字段不要输出\n' +
-            '4. 保持JSON格式正确，使用双引号\n' +
-            '5. [InitVar] 条目的 enabled 必须为 false；变量列表 content 必须含 {{format_message_variable::stat_data}} 宏\n' +
-            '6. ⚠️最关键：删除/替换条目必须使用下面「精确comment清单」里的字符串！不要自己编造comment！\n\n' +
-            // 注入精确 comment 清单（仅当优化 entries 时）
-            (selectedOptFields.indexOf('entries') >= 0 ? (function() {
-              var entries = (cardData.character_book || {}).entries || [];
-              if (!entries.length) return '（当前无世界书条目，无需处理删除）\n\n';
-              var t = '=== 🌍 世界书条目精确comment清单（删/改时直接复制使用，字符级精确） ===\n';
-              t += '共 ' + entries.length + ' 条条目，按模块分组：\n';
-              var groups = {};
-              entries.forEach(function(e, i) {
-                var c = e.comment || ('条目'+(i+1));
-                var p = extractEntryPrefix(c) || '其他';
-                if (!groups[p]) groups[p] = [];
-                groups[p].push({ idx: i+1, comment: c, content: e.content || '' });
-              });
-              Object.keys(groups).forEach(function(g) {
-                t += '\n【前缀：<' + g + '>】 共' + groups[g].length + '条：\n';
-                groups[g].forEach(function(x) {
-                  t += '  ' + x.idx + '. ⟦' + x.comment + '⟧  (' + x.content.length + '字)\n';
-                });
-              });
-              t += '\n⚠️ 删除写法示例：\n';
-              t += '  { "_action":"delete", "comment":"' + (entries[0] ? entries[0].comment : '精确comment') + '" }\n';
-              t += '⚠️ 修改写法：保持 comment 完全与上面一致，或先 _action:delete 再新增新comment条目\n\n';
-              return t;
-            })() : '') +
-            (selectedOptFields.indexOf('regex_scripts') >= 0 ? (function() {
-              var rx = ((cardData.extensions || {}).regex_scripts || []);
-              if (!rx.length) return '';
-              var t = '=== 🔧 regex_scripts 精确标识清单 ===\n';
-              rx.forEach(function(r, i) {
-                t += '  ' + (i+1) + '. id=' + (r.id||'(无)') + '  scriptName=' + (r.scriptName||'(无)') + '  findRegex=' + (r.findRegex||'(无)') + '\n';
-              });
-              t += '删除写法：{ "_action":"delete", "id":"..." } 或 { "_action":"delete", "scriptName":"..." }\n\n';
-              return t;
-            })() : '') +
-            '=== 当前角色卡（供参考） ===\n```json\n' + cardStr + '\n```';
-
-
-          var reply = await callAI(optPrompt);
-          var optimized = extractJSON(reply);
-          if (!optimized) {
-            if (prog) prog.style.display = 'none';
-            if (res) {
-              res.style.display = 'block';
-              res.innerHTML = '<div style="padding:12px;text-align:center;color:#f85149">⚠️ AI未返回有效的优化JSON<br><span style="font-size:.7em;color:#8b949e">原始回复：' + escHtml(reply.substring(0, 200)) + '</span></div>';
-            }
-          } else {
-            try {
-              if (prog) prog.style.display = 'none';
-              if (res) {
-                res.style.display = 'block';
-                var compH = '';
-                selectedOptFields.forEach(function(field) {
-                  var beforeV = '';
-                  var afterV = '';
-                  if (field === 'entries') {
-                    beforeV = JSON.stringify(((cardData.character_book || {}).entries || []).slice(0, 3), null, 1);
-                    afterV = JSON.stringify((optimized.entries || []).slice(0, 3), null, 1);
-                  } else if (field === 'tags') {
-                    beforeV = (cardData.tags || []).join(', ');
-                    afterV = (optimized.tags || []).join(', ');
-                  } else if (field === 'alternate_greetings') {
-                    beforeV = (cardData.alternate_greetings || []).join('\n---\n');
-                    afterV = (optimized.alternate_greetings || []).join('\n---\n');
-                  } else if (field === 'depth_prompt') {
-                    var beforeDp = (cardData.extensions || {}).depth_prompt || {};
-                    var afterDp = optimized.depth_prompt || {};
-                    beforeV = 'prompt: ' + (beforeDp.prompt || '') + '\ndepth: ' + (beforeDp.depth || 4);
-                    afterV = 'prompt: ' + (afterDp.prompt || '') + '\ndepth: ' + (afterDp.depth || 4);
-                  } else if (field === 'regex_scripts') {
-                    var beforeRx = (cardData.extensions || {}).regex_scripts || [];
-                    var afterRx = optimized.regex_scripts || [];
-                    beforeV = JSON.stringify(beforeRx.slice(0, 2), null, 1);
-                    afterV = JSON.stringify(afterRx.slice(0, 2), null, 1);
-                  } else {
-                    beforeV = cardData[field] || '';
-                    afterV = optimized[field] || '';
-                  }
-                  compH += '<div style="margin-bottom:10px">' +
-                    '<div style="font-size:.78em;font-weight:600;color:#d2a8ff;margin-bottom:4px">' + field + '</div>' +
-                    '<div class="opt-compare">' +
-                      '<div><div class="opt-label before">优化前</div><div class="opt-pane before">' + escHtml(beforeV) + '</div></div>' +
-                      '<div><div class="opt-label after">优化后</div><div class="opt-pane after">' + escHtml(afterV) + '</div></div>' +
-                    '</div></div>';
-                });
-                compH += '<div style="margin:10px 0;padding:10px;background:#161b22;border-radius:6px">' +
-                  '<div style="font-weight:600;margin-bottom:6px">📋 应用模式：</div>' +
-                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
-                  '<input type="radio" name="optMode" value="smart" checked> ' +
-                  '<b>智能合并模式（推荐）</b>：按 comment 精确匹配/前缀匹配自动覆盖、支持 _action:delete 删除，保留未被修改的旧条目' +
-                  '</label>' +
-                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
-                  '<input type="radio" name="optMode" value="replace"> ' +
-                  '<b>彻底替换模式</b>：删除当前卡中与优化字段同模块的<b>所有旧条目</b>，再插入优化后的新条目（彻底解决旧内容残留，适合重写/精简）' +
-                  '</label>' +
-                  '<label style="display:block;margin:4px 0;cursor:pointer">' +
-                  '<input type="radio" name="optMode" value="append"> ' +
-                  '<b>纯追加模式</b>：仅追加新条目，不修改不删除任何旧条目（不推荐，易重复）' +
-                  '</label>' +
-                  '</div>';
-                compH += '<div style="text-align:center;margin-top:8px">' +
-                  '<button class="btn btn-success" id="applyOptBtn">✅ 应用优化</button>' +
-                '</div>';
-                res.innerHTML = compH;
-                var applyBtn = doc.getElementById('applyOptBtn');
-                if (applyBtn) {
-                  applyBtn.addEventListener('click', function() {
-                    var modeRadios = doc.getElementsByName('optMode');
-                    var optMode = 'smart';
-                    for (var ri = 0; ri < modeRadios.length; ri++) {
-                      if (modeRadios[ri].checked) { optMode = modeRadios[ri].value; break; }
-                    }
-                    var optModified = false;
-                    if (optMode === 'replace') {
-                      // 彻底替换模式：先清理，再合并
-                      // entries 清理：删除所有前缀与新条目前缀相同的旧条目
-                      if (Array.isArray(optimized.entries) && optimized.entries.length) {
-                        var newPrefixes = {};
-                        optimized.entries.forEach(function(e) {
-                          var p = extractEntryPrefix(e.comment || '');
-                          if (p) newPrefixes[p] = true;
-                        });
-                        var oldEntries = (cardData.character_book || {}).entries || [];
-                        var keptEntries = oldEntries.filter(function(e) {
-                          var p = extractEntryPrefix(e.comment || '');
-                          // 保留与新条目前缀无关的旧条目；MVU核心条目([InitVar]、变量列表、更新规则、输出格式)始终保留，除非新内容中明确包含对应前缀
-                          var isMvuCore = /\[InitVar\]|变量列表|变量更新规则|变量输出格式|\[mvu_update\]/i.test(e.comment || '');
-                          if (isMvuCore && !(e.comment && optimized.entries.some(function(ne) { return (ne.comment || '') === e.comment; }))) {
-                            return true; // MVU核心条目默认保留，除非新内容精确覆盖
-                          }
-                          if (newPrefixes[p]) return false; // 相同前缀→删除
-                          return true; // 不同前缀→保留
-                        });
-                        if (!cardData.character_book) cardData.character_book = {};
-                        cardData.character_book.entries = keptEntries;
-                        optModified = (keptEntries.length !== oldEntries.length);
-                      }
-                      // regex_scripts 清理：删除后重新插入
-                      if (optimized.regex_scripts) {
-                        if (cardData.extensions) cardData.extensions.regex_scripts = [];
-                        optModified = true;
-                      }
-                      // alternate_greetings 清理
-                      if (optimized.alternate_greetings) {
-                        cardData.alternate_greetings = [];
-                        optModified = true;
-                      }
-                      // 再用 mergePartial 应用优化结果
-                      var r = mergePartial(optimized, cardData);
-                      if (r) optModified = true;
-                    } else if (optMode === 'append') {
-                      // 纯追加模式：只用新增逻辑
-                      if (Array.isArray(optimized.entries) && optimized.entries.length) {
-                        cardData.character_book = cardData.character_book || { entries: [] };
-                        optimized.entries.forEach(function(e) {
-                          if (!e || e._action === 'delete') return; // 追加模式下忽略删除动作
-                          if (!e.comment || !e.content) return;
-                          cardData.character_book.entries.push(Object.assign({ keys: [], secondary_keys: [] }, e));
-                          optModified = true;
-                        });
-                      }
-                      // 其他字段：长度非空时才覆盖
-                      ['description','personality','scenario','first_mes','system_prompt','creator_notes','mes_example','post_history_instructions'].forEach(function(f) {
-                        if (optimized[f] && String(optimized[f]).trim().length > 10) {
-                          if (cardData[f] !== optimized[f]) { cardData[f] = optimized[f]; optModified = true; }
-                        }
-                      });
-                      if (Array.isArray(optimized.alternate_greetings)) { cardData.alternate_greetings = (cardData.alternate_greetings || []).concat(optimized.alternate_greetings); optModified = true; }
-                      if (Array.isArray(optimized.tags)) { cardData.tags = (cardData.tags || []).concat(optimized.tags.filter(function(t) { return (cardData.tags || []).indexOf(t) < 0; })); optModified = true; }
-                    } else {
-                      // 智能合并模式（默认）
-                      optModified = !!mergePartial(optimized, cardData);
-                    }
-                    if (optModified) {
-                      progress = calcProgress();
-                      updateProgress();
-                      renderPreview();
-                      doc.getElementById('optModal').remove();
-                      showToast('✅ 优化已应用 (' + (optMode === 'replace' ? '替换模式' : optMode === 'append' ? '追加模式' : '智能合并') + ')', 'success');
-                    } else {
-                      showToast('⚠️ 未检测到有效修改', 'warning');
-                    }
-                  });
-                }
-              }
-            } catch(e) {
-              if (prog) prog.style.display = 'none';
-              if (res) {
-                res.style.display = 'block';
-                res.innerHTML = '<div style="padding:12px;text-align:center;color:#f85149">JSON解析失败: ' + escHtml(e.message) + '</div>';
-              }
-            }
-          }
-        } catch(err) {
-          if (prog) prog.style.display = 'none';
-          if (res) {
-            res.style.display = 'block';
-            res.innerHTML = '<div style="padding:12px;text-align:center;color:#f85149">优化失败: ' + escHtml(err.message) + '</div>';
-          }
-        } finally {
-          isGenerating = false;
-          if (btn) btn.disabled = false;
-        }
-      }
-
-      // ===== 预览渲染 =====
-      function renderPreview() {
-        var body = doc.getElementById('previewBody');
-        if (!body) return;
-        updateProgress();
-
-        function sec(icon, title, content, rightInfo) {
-          var has = content && (typeof content === 'string' ? content.trim().length > 0 : true);
-          var dot = has ? 'full' : 'empty';
-          var inner = has ? '<div class="pv-content">' + escHtml(typeof content === 'string' ? content : '') + '</div>' : '<div class="pv-empty">待生成...</div>';
-          var rightHtml = rightInfo ? '<span class="sec-right">' + rightInfo + '</span>' : '';
-          return '<div class="pv-section"><h3><span class="sec-left"><span class="dot ' + dot + '"></span>' + icon + ' ' + title + '</span>' + rightHtml + '</h3>' + inner + '</div>';
-        }
-
-        var h = '';
-        h += sec('🌍', '世界名称', cardData.name);
-        h += sec('📜', '世界观描述', cardData.description, cardData.description ? (cardData.description.length + '字') : '');
-
-        // 模块进度
-        var mp = getModuleProgress();
-        var modLabels = { axiom: '🏛️ 公理', soft_rules: '🤝 软规则', core_rules: '🔐 铁则', near_constraint: '🎯 近场', scene_mechanics: '⚔️ 机制', entity_interact: '👥 实体', narrative_bg: '📖 叙事', dynamic_adapt: '🔄 动态', init_var: '📊 变量', var_update_rule: '📝 更新' };
-        var modH = '<div class="module-progress">';
-        Object.keys(modLabels).forEach(function(k) {
-          var cls = mp[k] ? 'done' : 'todo';
-          modH += '<div class="module-item ' + cls + '">' + modLabels[k] + '</div>';
-        });
-        modH += '</div>';
-
-        var entries = (cardData.character_book && cardData.character_book.entries) || [];
-        var bookName = (cardData.name ? cardData.name + ' · 世界设定集' : '世界设定集');
-        var bookTokCount = 0;
-        entries.forEach(function(e) { bookTokCount += countTokens(e.content || ''); });
-
-        if (entries.length > 0) {
-          var eH = '';
-          for (var i = 0; i < Math.min(entries.length, 6); i++) {
-            var e = entries[i];
-            var label = e.comment || ('条目' + (i+1));
-            eH += '<div class="pv-entry"><div class="pv-entry-title">' + escHtml(label) + '</div><div class="pv-entry-content">' + escHtml((e.content||'').substring(0, 100)) + '</div></div>';
-          }
-          if (entries.length > 6) eH += '<div class="pv-entry"><div class="pv-entry-title" style="color:#484f58">...还有' + (entries.length - 6) + '条</div></div>';
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>📖 <span class="pv-book-name">' + escHtml(bookName) + '</span></span><span class="sec-right">' + entries.length + '条 · ~' + bookTokCount + 'T</span></h3>' + modH + eH + '</div>';
-        } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>📖 <span class="pv-book-name">' + escHtml(bookName) + '</span></span></h3><div class="pv-empty">待生成...</div></div>';
-        }
-
-        h += sec('🎬', '开场白', cardData.first_mes, cardData.first_mes ? (cardData.first_mes.length + '字') : '');
-        h += sec('⚡', '系统指令', cardData.system_prompt, cardData.system_prompt ? (cardData.system_prompt.length + '字') : '');
-
-        var tags = cardData.tags || [];
-        if (tags.length > 0) {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot full"></span>🏷️ 标签</span><span class="sec-right">' + tags.length + '个</span></h3><div class="pv-content">' + tags.map(function(t) { return escHtml(t); }).join(' · ') + '</div></div>';
-        } else {
-          h += '<div class="pv-section"><h3><span class="sec-left"><span class="dot empty"></span>🏷️ 标签</span></h3><div class="pv-empty">待生成...</div></div>';
-        }
-
-        h += sec('📝', '创作者备注', cardData.creator_notes);
-
-        body.innerHTML = h;
-      }
-
-      function saveCharacter() {
-        if (!cardData.name || !cardData.name.trim()) {
-          showToast('请先确定世界/角色名称', 'error');
-          return;
-        }
-        try {
-          var exportCard = buildExportCard(cardData);
-          // 检测是否包含MVU变量系统条目（复用 isMVUEntry 保持判定一致性）
-          var entries = (cardData.character_book || {}).entries || [];
-          var hasMVU = entries.some(function(e) { return isMVUEntry(e.comment || ''); });
-          if (hasMVU) {
-            // 导出时已自动注入 bundle.js脚本、变量结构zod脚本、正则1-5；正则6（美化状态栏）由AI生成或回退默认
-            var ext = (exportCard.data && exportCard.data.extensions) || {};
-            var rxScripts = ext.regex_scripts || [];
-            var helperScripts = (ext.tavern_helper && ext.tavern_helper.scripts) || [];
-            var hasBundle = helperScripts.some(function(s) { return (s.content || '').indexOf('bundle.js') >= 0; });
-            var hasSchema = helperScripts.some(function(s) { return (s.content || '').indexOf('registerMvuSchema') >= 0; });
-            var hasUpdRx = rxScripts.some(function(r) { return (r.findRegex || '').indexOf('UpdateVariable') >= 0; });
-            if (hasBundle && hasSchema && hasUpdRx) {
-              setTimeout(function() {
-                showToast('MVU变量系统已配置完整，bundle.js+变量结构脚本+正则1-5已自动注入，正则6（美化状态栏）需AI生成', 'success');
-              }, 500);
-            } else {
-              setTimeout(function() {
-                showToast('MVU变量系统条目已检测到，导出时将自动注入bundle.js脚本、变量结构脚本和正则', 'info');
-              }, 500);
-            }
-          }
-          showJsonModal(JSON.stringify(exportCard, null, 2));
-        } catch(e) {
-          showToast('保存失败: ' + e.message, 'error');
-        }
-      }
-
-      function showJsonModal(jsonStr) {
-        var modal = doc.createElement('div');
-        modal.className = 'json-modal';
-        modal.innerHTML =
-          '<div class="json-modal-content">' +
-            '<h2 style="color:#d2a8ff;margin-bottom:8px;font-size:1em">✨ 角色卡已生成</h2>' +
-            '<p style="color:#8b949e;margin-bottom:8px;font-size:.78em">复制JSON导入酒馆，或下载文件后导入。</p>' +
-            '<div style="display:flex;gap:4px;margin-bottom:8px">' +
-              '<button class="btn btn-ghost" id="formatV3" style="font-size:.75em;padding:4px 10px">📦 v3格式</button>' +
-              '<button class="btn btn-ghost" id="formatV2" style="font-size:.75em;padding:4px 10px">📦 v2格式</button>' +
-              '<button class="btn btn-ghost" id="formatLorebook" style="font-size:.75em;padding:4px 10px">📖 世界书</button>' +
-            '</div>' +
-            '<textarea id="jsonOutput" readonly></textarea>' +
-            '<div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">' +
-              '<button class="btn btn-ghost" id="closeJsonModal">关闭</button>' +
-              '<button class="btn btn-primary" id="copyJson">📋 复制</button>' +
-              '<button class="btn btn-success" id="downloadJson">💾 下载</button>' +
-            '</div>' +
-          '</div>';
-        doc.body.appendChild(modal);
-        var jsonOutput = doc.getElementById('jsonOutput');
-        jsonOutput.value = jsonStr;
-        var currentFormat = 'v3';
-
-        function buildV2Card(cd) {
-          // 复用 buildExportCard 确保 MVU 正则/脚本/StatusPlaceHolderImpl 等自动注入逻辑一致
-          var v3Card = buildExportCard(cd);
-          var data = v3Card.data;
-          return JSON.stringify({
-            spec: 'chara_card_v2',
-            spec_version: '2.0',
-            data: {
-              name: data.name,
-              description: data.description,
-              personality: data.personality,
-              scenario: data.scenario,
-              first_mes: data.first_mes,
-              mes_example: data.mes_example,
-              system_prompt: data.system_prompt,
-              post_history_instructions: data.post_history_instructions,
-              tags: data.tags,
-              creator_notes: data.creator_notes,
-              creator: data.creator,
-              character_version: data.character_version,
-              alternate_greetings: data.alternate_greetings,
-              group_only_greetings: data.group_only_greetings,
-              extensions: data.extensions,
-              character_book: data.character_book
-            }
-          }, null, 2);
-        }
-
-        function buildLorebook(cd) {
-          // 复用 buildExportCard 确保条目 enabled/position/depth 等字段与 V3 一致（如 [InitVar] enabled=false）
-          var v3Card = buildExportCard(cd);
-          var book = v3Card.data.character_book || {};
-          return JSON.stringify({
-            name: cd.name || '世界设定集',
-            description: cd.description || '',
-            entries: book.entries || []
-          }, null, 2);
-        }
-
-        doc.getElementById('formatV3').addEventListener('click', function() {
-          currentFormat = 'v3';
-          jsonOutput.value = jsonStr;
-        });
-        doc.getElementById('formatV2').addEventListener('click', function() {
-          currentFormat = 'v2';
-          jsonOutput.value = buildV2Card(cardData);
-        });
-        doc.getElementById('formatLorebook').addEventListener('click', function() {
-          currentFormat = 'lorebook';
-          jsonOutput.value = buildLorebook(cardData);
-        });
-
-        function closeModal() {
-          try { modal.remove(); } catch(e) {}
-          doc.removeEventListener('keydown', escHandler);
-        }
-        function escHandler(e) { if (e.key === 'Escape') closeModal(); }
-        doc.addEventListener('keydown', escHandler);
-        modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
-        doc.getElementById('closeJsonModal').addEventListener('click', closeModal);
-        doc.getElementById('copyJson').addEventListener('click', function() {
-          var ta = doc.getElementById('jsonOutput');
-          ta.select();
-          try { doc.execCommand('copy'); showToast('已复制到剪贴板', 'success'); }
-          catch(e) { showToast('复制失败，请手动选择', 'error'); }
-        });
-        doc.getElementById('downloadJson').addEventListener('click', function() {
-          var ta = doc.getElementById('jsonOutput');
-          var content = ta ? ta.value : jsonStr;
-          if (!content || content.length === 0) {
-            showToast('内容为空，无法下载', 'error');
-            return;
-          }
-          var fileName = (cardData.name || '时之写卡器导出').replace(/[<>:"/\\|?*]/g, '_') + '.json';
-
-          var done = false;
-
-          function tryDownload() {
-            if (done) return;
-            try {
-              var blob = new Blob([content], {type: 'application/json;charset=utf-8'});
-              var url = URL.createObjectURL(blob);
-              var a = doc.createElement('a');
-              a.href = url;
-              a.download = fileName;
-              a.style.display = 'none';
-              doc.body.appendChild(a);
-              a.click();
-              setTimeout(function() {
-                try { doc.body.removeChild(a); } catch(_) {}
-                try { URL.revokeObjectURL(url); } catch(_) {}
-              }, 5000);
-              done = true;
-              showToast('下载已开始', 'success');
-            } catch(e) { console.warn('blob download failed:', e); }
-          }
-
-          function tryParentBlob() {
-            if (done) return;
-            try {
-              var pw = window.parent;
-              if (pw && pw !== window) {
-                var pBlob = new (pw.Blob)([content], {type: 'application/json;charset=utf-8'});
-                var pUrl = (pw.URL || pw.webkitURL).createObjectURL(pBlob);
-                var pa = pw.document.createElement('a');
-                pa.href = pUrl;
-                pa.download = fileName;
-                pa.style.display = 'none';
-                pw.document.body.appendChild(pa);
-                pa.click();
-                setTimeout(function() {
-                  try { pw.document.body.removeChild(pa); } catch(_) {}
-                  try { (pw.URL || pw.webkitURL).revokeObjectURL(pUrl); } catch(_) {}
-                }, 5000);
-                done = true;
-                showToast('下载已开始', 'success');
-              }
-            } catch(e) { console.warn('parent blob download failed:', e); }
-          }
-
-          function tryDataUrl() {
-            if (done) return;
-            try {
-              var dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(content);
-              window.open(dataUrl, '_blank');
-              done = true;
-              showToast('已在新窗口打开，请另存为', 'info');
-            } catch(e) { console.warn('dataUrl open failed:', e); }
-          }
-
-          tryParentBlob();
-          if (!done) tryDownload();
-          if (!done) tryDataUrl();
-          if (!done) {
-            showToast('下载失败，请使用复制按钮', 'error');
-          }
-        });
-      }
-
-      // 点击按钮后创建 iframe 并展开渲染界面
-      expandPanel();
-      renderWelcome();
-
-      // 注册聊天事件实时监听：SillyTavern 有新消息时刷新欢迎页的聊天记录预览
-      registerChatListeners(function() {
-        // 只在欢迎页时自动刷新（避免打断正在进行的创作对话）
-        var startBtn = doc.getElementById('startBtn');
-        if (startBtn) {
-          // 欢迎页仍在，刷新聊天记录预览
-          renderWelcome();
-        }
+        tavern_helper: { scripts: [], variables: {} }
+      },
+      character_book: { entries: [] }
+    };
+    _lastProcessedMsgId = -1;
+    _chatMsgCount = 0;
+  }
+
+  // ===== 样式注入（一次性，紧凑现代风） =====
+  function injectStyles() {
+    var doc = parentDoc();
+    var styleId = SCRIPT_ID + '-styles';
+    if (doc.getElementById(styleId)) return;
+    var css = ''
+      + '#' + SCRIPT_ID + '-toolbar *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}'
+      // 容器：固定右下角
+      + '#' + SCRIPT_ID + '-toolbar{position:fixed;bottom:24px;right:24px;z-index:999999}'
+      // 折叠态 FAB：圆形渐变按钮
+      + '#' + SCRIPT_ID + '-toolbar .cm-fab{position:relative;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s ease,box-shadow .25s ease}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-fab:hover{transform:scale(1.08);box-shadow:0 10px 30px rgba(124,58,237,.6)}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-fab.active{transform:scale(0.92)}'
+      // FAB 完成度徽标
+      + '#' + SCRIPT_ID + '-toolbar .cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-badge.zero{background:#6b7280}'
+      // FAB 同步状态点
+      + '#' + SCRIPT_ID + '-toolbar .cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-dot.off{background:#6b7280}'
+      // 展开态面板
+      + '#' + SCRIPT_ID + '-toolbar .cm-panel{position:absolute;bottom:64px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;animation:cmPop .22s ease-out}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-panel.show{display:flex}'
+      + '@keyframes cmPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
+      // 标题栏（可拖拽）
+      + '#' + SCRIPT_ID + '-toolbar .cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns{display:flex;gap:6px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns button:hover{background:rgba(255,255,255,.32)}'
+      // 主体
+      + '#' + SCRIPT_ID + '-toolbar .cm-body{overflow-y:auto;padding:12px 14px;flex:1}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar{width:6px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-track{background:transparent}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-thumb:hover{background:#484f58}'
+      // 状态条（紧凑横排）
+      + '#' + SCRIPT_ID + '-toolbar .cm-status{display:flex;align-items:center;gap:8px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-chip b{color:#58a6ff;font-weight:600}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn{margin-left:auto;padding:3px 8px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:#fff}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn.on{background:#238636}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn.off{background:#6b7280}'
+      // 进度条
+      + '#' + SCRIPT_ID + '-toolbar .cm-progress{height:5px;background:#21262d;border-radius:3px;overflow:hidden;margin-bottom:10px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-progress > div{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .35s ease;border-radius:3px}'
+      // 折叠区段
+      + '#' + SCRIPT_ID + '-toolbar .cm-section{border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd:hover{background:#1c2230}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd .cm-arrow{transition:transform .2s;color:#8b949e;font-size:11px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section.open .cm-hd .cm-arrow{transform:rotate(90deg)}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-bd{padding:8px 12px;font-size:12px;display:none}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-section.open .cm-bd{display:block}'
+      // 字段列表
+      + '#' + SCRIPT_ID + '-toolbar .cm-field{display:flex;justify-content:space-between;align-items:center;padding:4px 0}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-nm{color:#c9d1d9}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-ok{color:#3fb950;font-weight:700}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-no{color:#484f58}'
+      // 预设分组
+      + '#' + SCRIPT_ID + '-toolbar .cm-group{color:#8b949e;font-size:11px;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-group:first-child{margin-top:0}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;gap:8px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item:last-child{border-bottom:none}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item .cm-nm{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-toggle{position:relative;width:32px;height:18px;background:#30363d;border-radius:9px;cursor:pointer;transition:background .2s;flex-shrink:0}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-toggle.on{background:#3fb950}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-toggle.on::after{transform:translateX(14px)}'
+      // 操作按钮
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button{padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;transition:background .15s,transform .1s}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button:hover{background:#30363d}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button:active{transform:scale(.97)}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.danger{background:#da3633;color:#fff}'
+      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.danger:hover{background:#f85149}'
+      // 空状态提示
+      + '#' + SCRIPT_ID + '-toolbar .cm-empty{color:#6e7681;font-size:12px;padding:8px 0;text-align:center;line-height:1.6}'
+      ;
+    var st = doc.createElement('style');
+    st.id = styleId;
+    st.textContent = css;
+    doc.head.appendChild(st);
+  }
+
+  function calcCompletion() {
+    if (!_cardData) return { done: 0, total: 9, pct: 0 };
+    var fields = ['name', 'description', 'first_mes', 'personality', 'scenario', 'mes_example', 'system_prompt', 'post_history_instructions'];
+    var done = 0;
+    fields.forEach(function (f) { if ((_cardData[f] || '').toString().trim()) done++; });
+    var entries = (_cardData.character_book && _cardData.character_book.entries) || [];
+    if (entries.length > 0) done++;
+    return { done: done, total: 9, pct: (done / 9) * 100 };
+  }
+
+  // ===== 各区块 HTML 渲染 =====
+  function renderStatusHtml(charName, completion) {
+    var pct = Math.round(completion.pct);
+    var syncCls = _autoSync ? 'on' : 'off';
+    var syncTxt = _autoSync ? '同步中' : '已暂停';
+    return ''
+      + '<div class="cm-status">'
+      + '<span class="cm-chip">👤 <b>' + escHtml(charName || '未选择') + '</b></span>'
+      + '<span class="cm-chip">💬 <b>' + _chatMsgCount + '</b></span>'
+      + '<span class="cm-chip">📊 <b>' + pct + '%</b></span>'
+      + '<button class="cm-sync-btn ' + syncCls + '" data-act="sync">' + syncTxt + '</button>'
+      + '</div>'
+      + '<div class="cm-progress"><div style="width:' + pct + '%"></div></div>';
+  }
+
+  function renderCardPreviewHtml() {
+    var cd = _cardData || {};
+    var entries = (cd.character_book && cd.character_book.entries) || [];
+    function hasStr(s) { return !!(s && s.toString().trim()); }
+    function chk(ok) { return ok ? '<span class="cm-ok">✓</span>' : '<span class="cm-no">○</span>'; }
+    var rows = [
+      ['name', hasStr(cd.name)],
+      ['description', hasStr(cd.description)],
+      ['first_mes', hasStr(cd.first_mes)],
+      ['personality', hasStr(cd.personality)],
+      ['scenario', hasStr(cd.scenario)],
+      ['mes_example', hasStr(cd.mes_example)],
+      ['system_prompt', hasStr(cd.system_prompt)],
+      ['post_history', hasStr(cd.post_history_instructions)],
+      ['世界书(' + entries.length + ')', entries.length > 0]
+    ];
+    var body = rows.map(function (r) {
+      return '<div class="cm-field"><span class="cm-nm">' + escHtml(r[0]) + '</span>' + chk(r[1]) + '</div>';
+    }).join('');
+    return ''
+      + '<div class="cm-section open">'
+      + '<div class="cm-hd"><span>📋 角色卡预览</span><span class="cm-arrow">▶</span></div>'
+      + '<div class="cm-bd">' + body + '</div>'
+      + '</div>';
+  }
+
+  function renderPresetHtml() {
+    var preset = fetchPreset();
+    var prompts = (preset && preset.prompts) ? classifyPromptsBySection(preset.prompts) : [];
+    var groups = { aux: [], worldinfo: [], general: [], mvu: [] };
+    prompts.forEach(function (p) { if (groups[p.section]) groups[p.section].push(p); });
+    var order = ['aux', 'worldinfo', 'general', 'mvu'];
+    var body = '';
+    order.forEach(function (sec) {
+      if (!groups[sec].length) return;
+      body += '<div class="cm-group">' + escHtml(SECTION_LABELS[sec] || sec) + '</div>';
+      groups[sec].forEach(function (p) {
+        var cls = 'cm-toggle' + (p.enabled ? ' on' : '');
+        body += '<div class="cm-preset-item">'
+          + '<span class="cm-nm" title="' + escHtml(p.name) + '">' + escHtml(p.displayName || p.name) + '</span>'
+          + '<div class="' + cls + '" data-name="' + escHtml(p.name) + '"></div>'
+          + '</div>';
       });
+    });
+    if (!body) body = '<div class="cm-empty">未检测到预设提示词<br>请先在 ST 中导入写卡预设</div>';
+    return ''
+      + '<div class="cm-section">'
+      + '<div class="cm-hd"><span>⚙️ 预设开关</span><span class="cm-arrow">▶</span></div>'
+      + '<div class="cm-bd">' + body + '</div>'
+      + '</div>';
+  }
 
-    } catch(e) {
-      console.error('时之写卡器 Error:', e);
-      showToast('打开失败: ' + e.message, 'error');
+  function renderActionsHtml() {
+    return ''
+      + '<div class="cm-actions">'
+      + '<button class="primary" data-act="export">⬇ 导出角色卡</button>'
+      + '<button data-act="import">⬆ 导入角色卡</button>'
+      + '<button data-act="clear" class="danger">🗑 清空数据</button>'
+      + '<button data-act="refresh">↻ 刷新数据</button>'
+      + '</div>';
+  }
+
+  function renderPanel() {
+    if (!_toolbar) return;
+    var p = _toolbar.panel;
+    var charName = fetchCurrentCharName();
+    var completion = calcCompletion();
+    var html = ''
+      + '<div class="cm-title">'
+      + '<span>⚡ 时之写卡器</span>'
+      + '<div class="cm-title-btns">'
+      + '<button data-act="collapse" title="收起">−</button>'
+      + '<button data-act="close" title="关闭">×</button>'
+      + '</div>'
+      + '</div>'
+      + '<div class="cm-body">'
+      + renderStatusHtml(charName, completion)
+      + renderCardPreviewHtml()
+      + renderPresetHtml()
+      + renderActionsHtml()
+      + '</div>';
+    p.innerHTML = html;
+    wirePanelEvents();
+  }
+
+  function wirePanelEvents() {
+    if (!_toolbar) return;
+    var p = _toolbar.panel;
+    var collapseBtn = p.querySelector('[data-act="collapse"]');
+    if (collapseBtn) collapseBtn.onclick = function () { setExpanded(false); };
+    var closeBtn = p.querySelector('[data-act="close"]');
+    if (closeBtn) closeBtn.onclick = function () { setExpanded(false); showToast('工具条已收起，聊天仍会自动同步'); };
+
+    var heads = p.querySelectorAll('.cm-section > .cm-hd');
+    Array.prototype.forEach.call(heads, function (h) {
+      h.onclick = function () { h.parentElement.classList.toggle('open'); };
+    });
+
+    var toggles = p.querySelectorAll('.cm-toggle');
+    Array.prototype.forEach.call(toggles, function (t) {
+      t.onclick = function () {
+        var name = t.getAttribute('data-name');
+        if (!name) return;
+        showToast('切换中...', 'info');
+        togglePresetPrompt(name).then(function () { refreshPanel(); }).catch(function(){ refreshPanel(); });
+      };
+    });
+
+    var exportBtn = p.querySelector('[data-act="export"]');
+    if (exportBtn) exportBtn.onclick = exportCard;
+    var importBtn = p.querySelector('[data-act="import"]');
+    if (importBtn) importBtn.onclick = triggerImport;
+    var clearBtn = p.querySelector('[data-act="clear"]');
+    if (clearBtn) clearBtn.onclick = function () {
+      if (confirm('确认清空当前角色卡数据？')) {
+        initCardData();
+        refreshPanel();
+        updateBadge();
+        showToast('数据已清空');
+      }
+    };
+    var refreshBtn = p.querySelector('[data-act="refresh"]');
+    if (refreshBtn) refreshBtn.onclick = function () {
+      autoExtractFromChat(true);
+      refreshPanel();
+      showToast('已刷新');
+    };
+    var syncBtn = p.querySelector('[data-act="sync"]');
+    if (syncBtn) syncBtn.onclick = function () {
+      _autoSync = !_autoSync;
+      refreshPanel();
+      updateDot();
+      showToast('自动同步已' + (_autoSync ? '开启' : '暂停'));
+    };
+  }
+
+  function refreshPanel() {
+    if (_toolbar && _expanded) renderPanel();
+    updateBadge();
+  }
+
+  function updateBadge() {
+    if (!_toolbar || !_toolbar.badge) return;
+    var c = calcCompletion();
+    var pct = Math.round(c.pct);
+    _toolbar.badge.textContent = pct + '%';
+    if (pct === 0) _toolbar.badge.classList.add('zero');
+    else _toolbar.badge.classList.remove('zero');
+  }
+
+  function updateDot() {
+    if (!_toolbar || !_toolbar.dot) return;
+    if (_autoSync) _toolbar.dot.classList.remove('off');
+    else _toolbar.dot.classList.add('off');
+  }
+
+  function setExpanded(expanded) {
+    _expanded = expanded;
+    if (!_toolbar) {
+      if (expanded) createToolbar();
+      return;
+    }
+    if (expanded) {
+      _toolbar.panel.classList.add('show');
+      _toolbar.fab.classList.add('active');
+      renderPanel();
+    } else {
+      _toolbar.panel.classList.remove('show');
+      _toolbar.fab.classList.remove('active');
     }
   }
 
-  // 和原始Card_making_tool.js一致：用'时之写卡器'
-  var BUTTON_NAME = '时之写卡器';
+  function makeDraggable() {
+    if (!_toolbar) return;
+    var doc = parentDoc();
+    var title = _toolbar.panel.querySelector('.cm-title');
+    if (!title) return;
+    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    var onDown = function (e) {
+      var tgt = e.target;
+      var isButton = !!tgt && (tgt.tagName === 'BUTTON' || (typeof tgt.closest === 'function' && !!tgt.closest('button')));
+      if (isButton) return;
+      dragging = true;
+      var t = e.touches ? e.touches[0] : e;
+      sx = t.clientX; sy = t.clientY;
+      var rect = _toolbar.container.getBoundingClientRect();
+      ox = rect.left; oy = rect.top;
+      e.preventDefault();
+    };
+    var onMove = function (e) {
+      if (!dragging) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      _toolbar.container.style.left = (ox + dx) + 'px';
+      _toolbar.container.style.top = (oy + dy) + 'px';
+      _toolbar.container.style.right = 'auto';
+      _toolbar.container.style.bottom = 'auto';
+    };
+    var onUp = function () { dragging = false; };
+    title.addEventListener('mousedown', onDown);
+    doc.addEventListener('mousemove', onMove);
+    doc.addEventListener('mouseup', onUp);
+    title.addEventListener('touchstart', onDown, { passive: false });
+    doc.addEventListener('touchmove', onMove, { passive: false });
+    doc.addEventListener('touchend', onUp);
+  }
 
-  function registerButton() {
+  // 创建悬浮工具条（FAB + 面板），自动注入 parent.document
+  function createToolbar() {
+    if (_toolbar) { setExpanded(true); return; }
+    if (!_cardData) initCardData();
+    var doc = parentDoc();
+    injectStyles();
+    var container = doc.createElement('div');
+    container.id = SCRIPT_ID + '-toolbar';
+
+    // 折叠态：圆形 FAB + 完成度徽标 + 同步状态点
+    var fab = doc.createElement('button');
+    fab.className = 'cm-fab';
+    fab.title = '时之写卡器 · 点击展开';
+    fab.textContent = '⚡';
+    var badge = doc.createElement('span');
+    badge.className = 'cm-badge zero';
+    badge.textContent = '0%';
+    var dot = doc.createElement('span');
+    dot.className = 'cm-dot';
+    fab.appendChild(badge);
+    fab.appendChild(dot);
+    fab.onclick = function () { setExpanded(!_expanded); };
+
+    // 展开态面板
+    var panel = doc.createElement('div');
+    panel.className = 'cm-panel';
+    container.appendChild(fab);
+    container.appendChild(panel);
+    doc.body.appendChild(container);
+
+    _toolbar = { container: container, fab: fab, badge: badge, dot: dot, panel: panel };
+    makeDraggable();
+    updateBadge();
+    updateDot();
+    setExpanded(true);
+
+    // 启动聊天监听（仅一次）
+    if (!_listenersRegistered) {
+      registerChatListeners(function () { autoExtractFromChat(); });
+      _listenersRegistered = true;
+    }
+    // 首次拉取一次历史消息
+    setTimeout(function () { autoExtractFromChat(true); }, 300);
+  }
+
+  function removeToolbar() {
+    if (_toolbar) {
+      try { _toolbar.container.remove(); } catch (_) {}
+      _toolbar = null;
+    }
+    _expanded = false;
+  }
+
+  // 从聊天消息中提取 ```json ... ``` 代码块
+  function extractJsonBlocks(text) {
+    var blocks = [];
+    if (!text) return blocks;
+    var re = /```(?:json)?\s*([\s\S]*?)```/g;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      blocks.push(m[1].trim());
+    }
+    if (!blocks.length) {
+      var t = text.trim();
+      if (t.charAt(0) === '{' && t.charAt(t.length - 1) === '}') blocks.push(t);
+    }
+    return blocks;
+  }
+
+  // 自动提取角色卡：拉取最近消息，解析 AI 消息中的 JSON，合并到 _cardData
+  // force=true 时无视 _autoSync，强制扫描一次（用于首次加载/手动刷新）
+  function autoExtractFromChat(force) {
+    if (!force && !_autoSync) return;
+    if (!_cardData) initCardData();
     try {
-      var evtOn = typeof eventOn === 'function' ? eventOn : null;
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : null;
+      var msgs = fetchChatMessages();
+      if (!msgs.length) return;
+      var newMsgs = [];
+      var maxId = _lastProcessedMsgId;
+      // force 模式：扫描所有未处理消息（重置 _lastProcessedMsgId 后全扫）
+      var scanFromId = force ? -1 : _lastProcessedMsgId;
+      msgs.forEach(function (m) {
+        if (m.messageId > scanFromId) {
+          newMsgs.push(m);
+          if (m.messageId > maxId) maxId = m.messageId;
+        }
+      });
+      if (!newMsgs.length) { refreshPanel(); return; }
+      var merged = false;
+      newMsgs.forEach(function (m) {
+        if (m.role === 'user') return;
+        var blocks = extractJsonBlocks(m.content);
+        blocks.forEach(function (b) {
+          try {
+            var obj = JSON.parse(b);
+            if (mergePartial(obj, _cardData)) merged = true;
+          } catch (_) {}
+        });
+      });
+      _lastProcessedMsgId = maxId;
+      _chatMsgCount = msgs.length;
+      if (merged || force) refreshPanel();
+    } catch (e) { console.warn('[时之写卡器] autoExtractFromChat failed:', e); }
+  }
+
+  function exportCard() {
+    if (!_cardData) initCardData();
+    try {
+      var card = buildExportCard(_cardData);
+      var json = JSON.stringify(card, null, 2);
+      var doc = parentDoc();
+      var BlobCtor = parentWin('Blob') || Blob;
+      var URLCtor = parentWin('URL') || URL;
+      var blob = new BlobCtor([json], { type: 'application/json' });
+      var url = URLCtor.createObjectURL(blob);
+      var a = doc.createElement('a');
+      a.href = url;
+      var fname = (card.name || 'character').replace(/[\\/:*?"<>|]/g, '_');
+      a.download = fname + '.json';
+      doc.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        try { doc.body.removeChild(a); } catch (_) {}
+        try { URLCtor.revokeObjectURL(url); } catch (_) {}
+      }, 200);
+      showToast('角色卡已导出');
+    } catch (e) { showToast('导出失败: ' + e.message, 'error'); }
+  }
+
+  function triggerImport() {
+    var doc = parentDoc();
+    var input = doc.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.style.display = 'none';
+    input.onchange = function () {
+      var f = input.files && input.files[0];
+      if (!f) { try { doc.body.removeChild(input); } catch (_) {} return; }
+      var FileReaderCtor = parentWin('FileReader') || FileReader;
+      var reader = new FileReaderCtor();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result);
+          importCardData(data);
+          refreshPanel();
+          showToast('角色卡已导入');
+        } catch (e) { showToast('导入失败：JSON 解析错误', 'error'); }
+        try { doc.body.removeChild(input); } catch (_) {}
+      };
+      reader.onerror = function () {
+        showToast('读取文件失败', 'error');
+        try { doc.body.removeChild(input); } catch (_) {}
+      };
+      reader.readAsText(f);
+    };
+    doc.body.appendChild(input);
+    input.click();
+  }
+
+  // 导入：兼容完整导出卡（带 spec/data 包装），解包后合并到 _cardData
+  function importCardData(data) {
+    if (!data || typeof data !== 'object') return;
+    var src = data;
+    if (data.data && data.spec) {
+      src = data.data;
+      ['name', 'description', 'personality', 'scenario', 'first_mes', 'mes_example'].forEach(function (k) {
+        if (data[k] != null && src[k] == null) src[k] = data[k];
+      });
+      if (data.creatorcomment != null && src.creator_notes == null) src.creator_notes = data.creatorcomment;
+    }
+    initCardData();
+    mergePartial(src, _cardData);
+  }
+
+  // ===== 初始化：自动创建悬浮工具条 + 注册 ST 扩展按钮（点击=展开/收起） =====
+  function registerSTButton() {
+    try {
+      var evtOn = typeof eventOn === 'function' ? eventOn : _g('eventOn');
+      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : _g('getButtonEvent');
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt(BUTTON_NAME), function() { openEditor(); });
+        evtOn(getBtnEvt(BUTTON_NAME), function () { setExpanded(!_expanded); });
         return true;
       }
-    } catch(e) {}
+    } catch (e) {}
     return false;
   }
 
-  function addFloatingButton() {
+  // 等待 parent.document.body 就绪后自动挂载工具条
+  var _initRetry = 0;
+  function autoMount() {
     try {
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      var old = pDoc.getElementById(SCRIPT_ID + '-btn');
-      if (old) old.remove();
-      var btn = pDoc.createElement('button');
-      btn.id = SCRIPT_ID + '-btn';
-      btn.textContent = '⚡ 时之写卡器';
-      btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:99998;padding:10px 18px;background:linear-gradient(135deg,#f78166,#da6152);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;box-shadow:0 4px 15px rgba(247,129,102,.4);transition:all .3s;font-size:14px;';
-      btn.onmouseover = function() { btn.style.transform = 'scale(1.05)'; };
-      btn.onmouseout = function() { btn.style.transform = 'scale(1)'; };
-      btn.onclick = openEditor;
-      pDoc.body.appendChild(btn);
-      return true;
-    } catch(e) { return false; }
+      var doc = parentDoc();
+      if (!doc || !doc.body) {
+        if (_initRetry < 30) { _initRetry++; setTimeout(autoMount, 300); }
+        return;
+      }
+      // 避免重复挂载
+      if (_toolbar) return;
+      createToolbar();
+      registerSTButton();
+    } catch (e) {
+      if (_initRetry < 30) { _initRetry++; setTimeout(autoMount, 300); }
+    }
   }
 
-  // 和原始Card_making_tool.js一致：简单重试，不用jQuery ready
-  var retryCount = 0;
-  function tryInit() {
-    if (registerButton()) { return; }
-    if (retryCount < 10) { retryCount++; setTimeout(tryInit, 500); }
-    else { addFloatingButton(); }
-  }
+  window.addEventListener('pagehide', function () {
+    try { cleanupChatListeners(); } catch(_) {}
+    removeToolbar();
+  });
 
-  window.addEventListener('pagehide', closeModal);
-  tryInit();
+  // 启动：DOM 就绪后自动挂载悬浮工具条（无需点击任何按钮）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoMount);
+  } else {
+    autoMount();
+  }
 })();
