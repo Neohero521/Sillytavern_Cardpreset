@@ -3165,57 +3165,13 @@
     mergePartial(src, _cardData);
   }
 
-  // ===== 初始化：注册 ST 扩展按钮（点击展开/收起）+ 自动挂载兜底 =====
-  function registerSTButton() {
-    try {
-      var evtOn = typeof eventOn === 'function' ? eventOn : _g('eventOn');
-      var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : _g('getButtonEvent');
-      if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt(BUTTON_NAME), function () {
-          // 点击 ST 扩展按钮 → 创建并展开工具条
-          if (!_toolbar) createToolbar();
-          else setExpanded(!_expanded);
-        });
-        return true;
-      }
-    } catch (e) {}
-    return false;
-  }
-
-  // 等待 parent.document.body 就绪后自动挂载工具条
-  var _initRetry = 0;
-  function autoMount() {
-    try {
-      var doc = parentDoc();
-      if (!doc || !doc.body) {
-        if (_initRetry < 60) { _initRetry++; setTimeout(autoMount, 300); }
-        return;
-      }
-      // 避免重复挂载
-      if (_toolbar) return;
-      createToolbar();
-      // 挂载成功后，尝试用 ST 的 APP_READY 事件补一次（防止 ST 晚初始化）
-      try {
-        var evtOn = _g('eventOn');
-        var te = (typeof tavern_events !== 'undefined') ? tavern_events : (window.parent && window.parent.tavern_events);
-        if (evtOn && te && te.APP_READY) {
-          evtOn(te.APP_READY, function () { if (!_toolbar) createToolbar(); });
-        }
-      } catch (_) {}
-    } catch (e) {
-      console.error('[时之写卡器] autoMount 失败:', e);
-      if (_initRetry < 60) { _initRetry++; setTimeout(autoMount, 500); }
-    }
-  }
-
-  // 独立 fallback 悬浮按钮（最后保险：万一工具条挂不上，至少有个按钮能点开）
+  // 独立 fallback 悬浮按钮（工具条创建失败时的兜底）
   function addFallbackButton() {
     try {
-      if (_toolbar) return; // 工具条已挂载则不需要
-      var pDoc = parentDoc();
-      var old = pDoc.getElementById(SCRIPT_ID + '-fallback');
+      var doc = parentDoc();
+      var old = doc.getElementById(SCRIPT_ID + '-fallback');
       if (old) old.remove();
-      var btn = pDoc.createElement('button');
+      var btn = doc.createElement('button');
       btn.id = SCRIPT_ID + '-fallback';
       btn.textContent = '⚡ 写卡器';
       btn.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:999998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:transform .2s;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
@@ -3225,41 +3181,67 @@
         if (!_toolbar) createToolbar();
         else setExpanded(true);
       };
-      pDoc.body.appendChild(btn);
+      doc.body.appendChild(btn);
       console.log('[时之写卡器] 已挂载 fallback 悬浮按钮');
     } catch (e) { console.error('[时之写卡器] addFallbackButton 失败:', e); }
   }
 
+  // ===== 初始化：直接创建悬浮工具条（不依赖 ST 按钮系统） =====
+  // 在 ST 沙箱里，通过 import 加载的脚本可能无法访问 parent 的 eventOn/getButtonEvent
+  // 所以直接创建工具条，不等待按钮点击
+
+  function init() {
+    // 获取目标 document（优先 parent，fallback 到自身）
+    var doc = parentDoc();
+    
+    // 如果 document.body 还不存在，延迟重试
+    if (!doc || !doc.body) {
+      console.log('[时之写卡器] document.body 未就绪，1秒后重试');
+      setTimeout(init, 1000);
+      return;
+    }
+    
+    // 如果已经挂载，直接返回
+    if (doc.getElementById(SCRIPT_ID + '-toolbar')) {
+      console.log('[时之写卡器] 工具条已存在');
+      return;
+    }
+    
+    console.log('[时之写卡器] 开始创建工具条');
+    try {
+      createToolbar();
+      console.log('[时之写卡器] 工具条创建成功');
+    } catch (e) {
+      console.error('[时之写卡器] 工具条创建失败:', e);
+      // 创建失败时，添加一个简单的 fallback 按钮
+      addFallbackButton();
+    }
+  }
+
+  // 清理函数
   window.addEventListener('pagehide', function () {
     try { cleanupChatListeners(); } catch(_) {}
     removeToolbar();
   });
 
-  // 启动策略：
-  // 1. 立即注册 ST 扩展按钮（点击触发，最可靠）
-  // 2. 简单重试注册（等 ST 初始化完成）
-  // 3. 同时延迟自动挂载兜底（无需点击即可显示）
-  // 4. 最后兜底：如果自动挂载失败，加独立 fallback 按钮
-  var retryCount = 0;
-  function tryRegisterButton() {
-    if (registerSTButton()) { return; }
-    if (retryCount < 20) { retryCount++; setTimeout(tryRegisterButton, 500); }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      tryRegisterButton();
-      setTimeout(autoMount, 1000);
-      // 6 秒后若工具条还没挂上，加 fallback 按钮
-      setTimeout(function () { if (!_toolbar) addFallbackButton(); }, 6000);
-    });
-  } else {
-    tryRegisterButton();
-    setTimeout(autoMount, 1000);
-    setTimeout(function () { if (!_toolbar) addFallbackButton(); }, 6000);
-  }
-  // 多重自动挂载兜底
-  setTimeout(autoMount, 2000);
-  setTimeout(autoMount, 4000);
-  window.addEventListener('load', autoMount);
+  // 启动：立即尝试初始化
+  // 对于 ES 模块，脚本执行时 DOM 可能已经 ready
+  init();
+  
+  // 同时注册延迟兜底（处理 DOM 还未就绪的情况）
+  setTimeout(init, 500);
+  setTimeout(init, 1500);
+  setTimeout(init, 3000);
+  
+  // 尝试注册 ST 扩展按钮（可选，如果成功则支持点击按钮展开/收起）
+  try {
+    var evtOn = typeof eventOn === 'function' ? eventOn : (window.parent && window.parent.eventOn);
+    var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (window.parent && window.parent.getButtonEvent);
+    if (evtOn && getBtnEvt) {
+      evtOn(getBtnEvt(BUTTON_NAME), function () {
+        if (!_toolbar) createToolbar();
+        else setExpanded(!_expanded);
+      });
+    }
+  } catch (_) {}
 })();
