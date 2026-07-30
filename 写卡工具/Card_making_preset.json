@@ -83,7 +83,7 @@
           "enabled": true,
           "name": "时之写卡器",
           "id": "689aec75-3a25-4e64-94f5-769e53857df8",
-          "content": "import 'https://cdn.jsdelivr.net/gh/Neohero521/agent-84TpKf@06a7c4222d02625eb0c1595e98a54e82f55c0ec6/写卡工具/Card_making_frontend.js'",
+          "content": "import 'https://cdn.jsdelivr.net/gh/Neohero521/agent-84TpKf@f8da65b735c8bb107e48eee058166dae3843f14a/写卡工具/Card_making_frontend.js'",
           "info": "",
           "button": {
             "enabled": true,
