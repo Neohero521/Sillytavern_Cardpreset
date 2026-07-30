@@ -3020,9 +3020,8 @@
     doc.addEventListener('touchend', onUp);
   }
 
-  // 创建悬浮工具条：1:1 照搬原版 Card_making_tool.js 的 createModalIframe 写法
-  // 原版已验证可在 ST 沙箱工作：创建 iframe → append 到 body → load 后写 contentDocument
-  // 不用 srcdoc（可能被 ST 沙箱阻止）
+  // 创建悬浮工具条：极简测试版
+  // 先创建一个最简单的 iframe（红色背景），确认能显示再加功能
   function createToolbar() {
     if (_toolbar) {
       try { setExpanded(true); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
@@ -3030,22 +3029,22 @@
     }
     try {
       if (!_cardData) initCardData();
-      var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      if (!parentDoc || !parentDoc.body) {
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      if (!pDoc || !pDoc.body) {
         console.error('[时之写卡器] parent.document 无 body');
         return;
       }
 
       // 移除旧实例
-      var old = parentDoc.getElementById(SCRIPT_ID + '-toolbar');
+      var old = pDoc.getElementById(SCRIPT_ID + '-toolbar');
       if (old) old.remove();
 
-      // ===== 完全照搬原版 createModalIframe 的 iframe 创建方式 =====
-      var iframe = parentDoc.createElement('iframe');
+      // ===== 创建 iframe（参考原版 createModalIframe）=====
+      var iframe = pDoc.createElement('iframe');
       iframe.id = SCRIPT_ID + '-toolbar';
       iframe.setAttribute('script_id', SCRIPT_ID);
-      // 悬浮小窗：初始 60x60（折叠态），展开态 360x560
-      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:60px;height:60px;border:none;z-index:99999;background:#0d1117;border-radius:30px;overflow:hidden;transition:width .25s ease,height .25s ease,border-radius .25s ease;';
+      // 先做一个可见的测试：红色背景 + 白色文字
+      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:360px;height:560px;border:2px solid #ff0000;z-index:99999;background:#ff0000;border-radius:14px;overflow:auto;';
 
       var loaded = false;
       var onLoad = function () {
@@ -3053,106 +3052,122 @@
         loaded = true;
         try {
           var d = iframe.contentDocument || iframe.contentWindow.document;
-          // 写入样式（照搬原版方式：用 style 元素）
-          var s = d.createElement('style');
-          s.textContent = ''
-            + '*{margin:0;padding:0;box-sizing:border-box}'
-            + 'html,body{width:100%;height:100%;overflow:hidden;background:#0d1117}'
-            + '.cm-fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s;position:relative}'
-            + '.cm-fab:hover{transform:scale(1.08)}'
-            + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
-            + '.cm-badge.zero{background:#6b7280}'
-            + '.cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
-            + '.cm-dot.off{background:#6b7280}'
-            + '.cm-panel{position:absolute;bottom:60px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden}'
-            + '.cm-panel.show{display:flex}'
-            + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
-            + '.cm-title-btns{display:flex;gap:6px}'
-            + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1}'
-            + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
-            + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
-            + '.cm-status .stat{display:flex;align-items:center;gap:4px;color:#8b949e}'
-            + '.cm-status .stat b{color:#e6edf3;font-weight:600}'
-            + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
-            + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
-            + '.cm-section{margin-bottom:10px}'
-            + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
-            + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
-            + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
-            + '.cm-field:last-child{border-bottom:none}'
-            + '.cm-field-name{color:#8b949e}'
-            + '.cm-field-status.ok{color:#3fb950}'
-            + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
-            + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer;transition:all .15s}'
-            + '.cm-btn:hover{background:#30363d;border-color:#8b949e}'
-            + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
-            + '.cm-preset-group{margin-bottom:6px}'
-            + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
-            + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
-            + '.cm-preset-item:hover{background:#161b22}'
-            + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
-            + '.cm-preset-item .toggle.on{background:#3fb950}'
-            + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
-            + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
-            + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}';
-          d.head.appendChild(s);
-
-          // 写入 HTML 结构
-          d.body.innerHTML = ''
-            + '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
-            + '<div class="cm-panel" id="panel"></div>';
-
-          var fab = d.getElementById('fab');
-          var badge = d.getElementById('badge');
-          var panel = d.getElementById('panel');
-          var dot = d.createElement('span');
-          dot.className = 'cm-dot';
-          fab.appendChild(dot);
-
-          _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
-
-          // FAB 点击切换展开/收起
-          fab.addEventListener('click', function () {
-            setExpanded(!_expanded);
-          });
-
-          console.log('[时之写卡器] ✅ iframe 工具条创建完成');
-
-          // 非关键步骤
-          try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable:', e); }
-          try { updateBadge(); } catch(e) {}
-          try { updateDot(); } catch(e) {}
-
-          // 启动聊天监听
-          if (!_listenersRegistered) {
-            try {
-              registerChatListeners(function () { autoExtractFromChat(); });
-              _listenersRegistered = true;
-            } catch(e) {}
-          }
-          setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
-
-          // 默认展开
-          setExpanded(true);
+          d.body.style.background = '#ff0000';
+          d.body.style.color = '#fff';
+          d.body.style.padding = '20px';
+          d.body.style.fontFamily = 'sans-serif';
+          d.body.innerHTML = '<h2 style="color:#fff;margin-bottom:12px;">⚡ 时之写卡器</h2>'
+            + '<p style="margin-bottom:8px;">如果你看到这个红色面板，说明 iframe 创建成功！</p>'
+            + '<p style="font-size:12px;opacity:.8;">下一步将把工具条内容渲染到这里。</p>'
+            + '<button id="closeBtn" style="margin-top:16px;padding:8px 20px;background:#fff;color:#ff0000;border:none;border-radius:6px;cursor:pointer;">关闭</button>'
+            + '<button id="upgradeBtn" style="margin-top:16px;margin-left:8px;padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">升级为工具条</button>';
+          var closeBtn = d.getElementById('closeBtn');
+          if (closeBtn) closeBtn.onclick = function () { iframe.remove(); _toolbar = null; };
+          var upgradeBtn = d.getElementById('upgradeBtn');
+          if (upgradeBtn) upgradeBtn.onclick = function () {
+            d.body.innerHTML = '<p style="color:#fff;">升级中...</p>';
+            renderFullToolbar(iframe, d, pDoc);
+          };
+          console.log('[时之写卡器] ✅ iframe 已创建并显示红色测试面板');
         } catch (e) {
-          console.error('[时之写卡器] onLoad 失败:', e);
+          console.error('[时之写卡器] onLoad 写入内容失败:', e);
+          // 即使 contentDocument 写入失败，iframe 也应该显示红色背景
+          // 因为我们在 style 里设了 background:#ff0000
         }
       };
 
       iframe.addEventListener('load', onLoad);
-      parentDoc.body.appendChild(iframe);
-      console.log('[时之写卡器] iframe 已挂载到 parent.document.body');
+      pDoc.body.appendChild(iframe);
+      console.log('[时之写卡器] iframe 已 append 到 parent.document.body');
 
-      // 兜底：1.5秒后如果 load 没触发，强制初始化
+      // 兜底：如果 load 不触发，直接写入
       setTimeout(function () {
         if (!loaded) {
-          console.warn('[时之写卡器] load 事件未触发，强制初始化');
-          try { onLoad(); } catch(e) { console.error('[时之写卡器] 强制初始化失败:', e); }
+          console.warn('[时之写卡器] load 事件未触发，直接写入内容');
+          try {
+            var d2 = iframe.contentDocument || iframe.contentWindow.document;
+            d2.body.innerHTML = '<p style="color:#fff;padding:20px;">兜底：红色面板（load 未触发）</p>';
+            loaded = true;
+          } catch(e) {
+            console.error('[时之写卡器] 兜底写入也失败:', e);
+          }
         }
-      }, 1500);
+      }, 2000);
+
+      // 2.5秒后再次检查 iframe 是否在 DOM 中
+      setTimeout(function () {
+        var found = pDoc.getElementById(SCRIPT_ID + '-toolbar');
+        if (!found) {
+          console.error('[时之写卡器] ❌ iframe 不在 DOM 中！可能被 ST 移除了');
+        } else {
+          console.log('[时之写卡器] ✅ iframe 在 DOM 中，尺寸:', found.offsetWidth, 'x', found.offsetHeight);
+        }
+      }, 2500);
     } catch (e) {
       console.error('[时之写卡器] ❌ createToolbar 整体失败:', e);
     }
+  }
+
+  // 将红色面板升级为完整工具条
+  function renderFullToolbar(iframe, d, pDoc) {
+    // 创建完整的工具条内容
+    var styleEl = d.createElement('style');
+    styleEl.textContent = ''
+      + '*{margin:0;padding:0;box-sizing:border-box}'
+      + 'html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#e6edf3}'
+      + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:600;font-size:14px;color:#fff}'
+      + '.cm-title-btns{display:flex;gap:6px}'
+      + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:14px}'
+      + '.cm-body{padding:12px;overflow-y:auto;height:calc(100% - 46px)}'
+      + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+      + '.cm-status .stat{color:#8b949e}'
+      + '.cm-status .stat b{color:#e6edf3}'
+      + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}'
+      + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer}'
+      + '.cm-btn:hover{background:#30363d}'
+      + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}';
+    d.head.appendChild(styleEl);
+    d.body.innerHTML = ''
+      + '<div class="cm-title">'
+      + '  <span>⚡ 时之写卡器</span>'
+      + '  <div class="cm-title-btns"><button id="closeBtn">✕</button></div>'
+      + '</div>'
+      + '<div class="cm-body">'
+      + '  <div class="cm-status"><span class="stat">👤 <b id="charName">加载中...</b></span><span class="stat">💬 <b id="msgCount">0</b></span></div>'
+      + '  <p style="font-size:12px;color:#8b949e;margin-bottom:10px;">在 ST 中聊天，工具条会自动从 AI 消息中提取角色卡数据。</p>'
+      + '  <div class="cm-actions">'
+      + '    <button class="cm-btn primary" id="exportBtn">📥 导出角色卡</button>'
+      + '    <button class="cm-btn" id="refreshBtn">🔄 刷新数据</button>'
+      + '    <button class="cm-btn" id="importBtn">📤 导入角色卡</button>'
+      + '    <button class="cm-btn" id="clearBtn">🗑️ 清空数据</button>'
+      + '  </div>'
+      + '</div>';
+    var fab = d.createElement('button');
+    fab.className = 'cm-fab';
+    fab.id = 'fab';
+    fab.textContent = '⚡';
+    fab.style.cssText = 'position:absolute;bottom:10px;left:10px;width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:18px;';
+    d.body.appendChild(fab);
+
+    _toolbar = { iframe: iframe, fab: fab, badge: null, dot: null, panel: null, doc: d };
+
+    // 绑定事件
+    d.getElementById('closeBtn').onclick = function () { iframe.remove(); _toolbar = null; };
+    d.getElementById('exportBtn').onclick = exportCard;
+    d.getElementById('refreshBtn').onclick = function () { autoExtractFromChat(true); };
+    d.getElementById('importBtn').onclick = importCard;
+    d.getElementById('clearBtn').onclick = clearCardData;
+
+    console.log('[时之写卡器] ✅ 完整工具条已渲染');
+
+    // 启动聊天监听
+    if (!_listenersRegistered) {
+      try {
+        registerChatListeners(function () { autoExtractFromChat(); });
+        _listenersRegistered = true;
+      } catch(e) {}
+    }
+    setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
   }
 
   // 从聊天消息中提取 ```json ... ``` 代码块
