@@ -5433,15 +5433,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
       }
 
-      try {
-        expandPanel();
-        renderWelcome();
-      } catch(e) {
-        try {
-          doc.body.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#f78166;font-size:14px;padding:12px;text-align:center;cursor:pointer" onclick="document.body.innerHTML=\'\';try{window._init&&window._init()}catch(e){}">⚡ 点击打开时之写卡器</div>';
-          window._init = function() { expandPanel(); renderWelcome(); };
-        } catch(_) {}
-      }
+      // 点击按钮后创建 iframe 并展开渲染界面
+      expandPanel();
+      renderWelcome();
 
     } catch(e) {
       console.error('时之写卡器 Error:', e);
@@ -5449,15 +5443,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     }
   }
 
+  var BUTTON_NAME = '打开时之写卡器';
+
   function registerButton() {
     try {
+      // 参照 index.js：用 replaceScriptButtons 主动注册按钮
+      var rbs = typeof replaceScriptButtons === 'function' ? replaceScriptButtons : (typeof window.replaceScriptButtons === 'function' ? window.replaceScriptButtons : null);
+      if (rbs) {
+        rbs([{ name: BUTTON_NAME, visible: true }]);
+      }
       var evtOn = typeof eventOn === 'function' ? eventOn : (typeof window.eventOn === 'function' ? window.eventOn : null);
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : (typeof window.getButtonEvent === 'function' ? window.getButtonEvent : null);
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt('时之写卡器'), function() { openEditor(); });
+        evtOn(getBtnEvt(BUTTON_NAME), function() { openEditor(); });
         return true;
       }
-    } catch(e) {}
+    } catch(e) { console.warn('registerButton failed:', e); }
     return false;
   }
 
@@ -5478,13 +5479,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     } catch(e) { return false; }
   }
 
-  var retryCount = 0;
-  function tryInit() {
-    if (registerButton()) { return; }
-    if (retryCount < 10) { retryCount++; setTimeout(tryInit, 500); }
-    else { addFloatingButton(); }
+  // 参照 index.js：用 jQuery ready 初始化
+  function init() {
+    if (registerButton()) return;
+    // SillyTavern 全局函数可能还未就绪，重试几次
+    var retryCount = 0;
+    function retry() {
+      if (registerButton()) return;
+      if (retryCount < 20) { retryCount++; setTimeout(retry, 300); }
+      else { addFloatingButton(); }
+    }
+    retry();
   }
 
   window.addEventListener('pagehide', closeModal);
-  tryInit();
+
+  // 优先用 jQuery ready（SillyTavern 环境一定有 $）
+  if (typeof window.$ === 'function' || typeof window.jQuery === 'function') {
+    (window.$ || window.jQuery)(function() { init(); });
+  } else {
+    init();
+  }
 })();
