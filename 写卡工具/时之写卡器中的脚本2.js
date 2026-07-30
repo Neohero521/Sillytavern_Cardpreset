@@ -2799,6 +2799,7 @@
     try {
       renderToolbar();
       bindInjectionHandler();
+      bindAutoCaptureHandler();
       window.addEventListener('resize', function () {
         if (!ui) return;
         applyToolbarPosition(ui.toolbar);
@@ -2992,6 +2993,25 @@
     });
   }
 
+  // 绑定 CHARACTER_MESSAGE_RENDERED → AI消息渲染完立即扫JSON（与 MutationObserver 双通道防抖）
+  function bindAutoCaptureHandler() {
+    if (window._cmCaptureBound) return;
+    window._cmCaptureBound = true;
+    stEventOn('CHARACTER_MESSAGE_RENDERED', function() {
+      try {
+        var now = Date.now();
+        // 与MutationObserver共用一个节流锁：1.2s内不重复扫
+        if (bindChatObserver._t) return;
+        if (bindAutoCaptureHandler._lastRun && now - bindAutoCaptureHandler._lastRun < 1500) return;
+        bindAutoCaptureHandler._lastRun = now;
+        setTimeout(function() {
+          var c = scanRecentMessages();
+          if (c > 0) toast('自动捕获写入 ' + c + ' 项更新到面板');
+        }, 300);
+      } catch(e) { console.warn('[CM-IDE] autoCapture failed:', e); }
+    });
+  }
+
   // 读取当前预设
   function readPreset() {
     var getPreset = stAPI('getPreset');
@@ -3117,6 +3137,7 @@
     buildCardContext: buildCardContext,
     syncContextToPreset: syncContextToPreset,
     bindInjectionHandler: bindInjectionHandler,
+    bindAutoCaptureHandler: bindAutoCaptureHandler,
     autoActivateFromText: autoActivateFromText,
     AUTO_KEYWORDS: AUTO_KEYWORDS,
     // ===== 编辑器视图 =====
