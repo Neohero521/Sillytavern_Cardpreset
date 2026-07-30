@@ -573,6 +573,30 @@
       + R + '-toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
       // --- 隐藏文件输入 ---
       + R + '-file{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}'
+      // --- 编辑器视图（文件树 + 编辑面板 + 预览） ---
+      + R + '-dash .cm-editor-wrap{display:flex;gap:8px;height:380px}'
+      + R + '-dash .cm-file-tree{width:200px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--cm-border);padding-right:4px}'
+      + R + '-dash .cm-file-tree::-webkit-scrollbar{width:4px}'
+      + R + '-dash .cm-file-tree::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}'
+      + R + '-dash .cm-ft-search{width:100%;padding:4px 8px;border:1px solid var(--cm-border);border-radius:6px;font-size:11px;margin-bottom:6px;background:var(--cm-bg);color:var(--cm-text);font-family:inherit}'
+      + R + '-dash .cm-ft-search:focus{outline:none;border-color:var(--cm-accent)}'
+      + R + '-dash .cm-ft-item{padding:4px 8px;cursor:pointer;border-radius:4px;font-size:11px;display:flex;align-items:center;gap:4px;transition:background .15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      + R + '-dash .cm-ft-item:hover{background:var(--cm-accent-soft)}'
+      + R + '-dash .cm-ft-item.active{background:var(--cm-accent-soft);color:var(--cm-accent);font-weight:500}'
+      + R + '-dash .cm-ft-folder{font-weight:600;color:var(--cm-dim);padding:4px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
+      + R + '-dash .cm-ft-indent{padding-left:8px}'
+      + R + '-dash .cm-editor-panel{flex:1;display:flex;flex-direction:column;min-width:0}'
+      + R + '-dash .cm-editor-head{display:flex;align-items:center;gap:8px;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--cm-border-soft);flex-wrap:wrap}'
+      + R + '-dash .cm-editor-path{font-size:11px;color:var(--cm-dim);font-family:monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      + R + '-dash .cm-editor-actions{display:flex;gap:4px;flex-shrink:0}'
+      + R + '-dash .cm-editor-textarea{flex:1;width:100%;border:1px solid var(--cm-border);border-radius:6px;padding:8px;font-size:12px;font-family:"SF Mono",Consolas,monospace;resize:none;background:var(--cm-bg);color:var(--cm-text);line-height:1.5;min-height:280px}'
+      + R + '-dash .cm-editor-textarea:focus{outline:none;border-color:var(--cm-accent)}'
+      + R + '-dash .cm-editor-placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--cm-dim2);font-size:12px;text-align:center;padding:20px}'
+      + R + '-dash .cm-editor-preview{margin-top:8px;border:1px solid var(--cm-border);border-radius:6px;max-height:200px;overflow:auto;background:var(--cm-bg)}'
+      + R + '-dash .cm-editor-preview pre{padding:8px;font-size:10px;font-family:"SF Mono",Consolas,monospace;white-space:pre-wrap;word-break:break-all;color:var(--cm-text);margin:0;line-height:1.5}'
+      + R + '-dash .cm-editor-preview::-webkit-scrollbar{width:4px}'
+      + R + '-dash .cm-editor-preview::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}'
+      + R + '-dash .cm-editor-stats{font-size:10px;color:var(--cm-dim2);padding:4px 2px;display:flex;justify-content:space-between;align-items:center}'
       // --- 响应式 ---
       + '@media(max-width:620px){'
       + R + '-dash{width:calc(100vw - 16px)}'
@@ -1213,6 +1237,7 @@
       + '  <button class="cm-dtab" data-view="worldbook">世界书概览</button>'
       + '  <button class="cm-dtab" data-view="tools">快捷工具</button>'
       + '  <button class="cm-dtab" data-view="templates">模板管理</button>'
+      + '  <button class="cm-dtab" data-view="editor">编辑器</button>'
       + '</div>'
       + '<div class="cm-dbody" id="cm-dbody"></div>';
     doc.body.appendChild(dash);
@@ -1270,6 +1295,7 @@
     else if (v === 'worldbook') renderWBView();
     else if (v === 'tools') renderToolsView();
     else if (v === 'templates') renderTemplatesView();
+    else if (v === 'editor') renderEditorView();
   }
 
   // --- 仪表盘视图：10个环形进度卡 + 详情 ---
@@ -1870,6 +1896,365 @@
     else if (ui.view === 'worldbook') renderWBView();
     else if (ui.view === 'tools') renderToolsView();
     else if (ui.view === 'templates') renderTemplatesView();
+    else if (ui.view === 'editor') renderEditorView();
+  }
+
+  // ========== 编辑器视图：文件树 + 编辑面板 + 预览 ==========
+  var editorState = { currentPath: null, originalValue: '', searchQuery: '' };
+
+  // 基础字段定义（用于文件树展示与路径标签）
+  var EDITOR_BASE_FIELDS = [
+    { key: 'name',                      label: '名称' },
+    { key: 'description',               label: '世界观描述' },
+    { key: 'personality',               label: '性格' },
+    { key: 'scenario',                  label: '场景' },
+    { key: 'first_mes',                 label: '开场白' },
+    { key: 'mes_example',               label: '对话示例' },
+    { key: 'system_prompt',             label: '系统指令' },
+    { key: 'post_history_instructions', label: '核心铁则' },
+    { key: 'creator_notes',             label: '创作者备注' },
+    { key: 'depth_prompt',              label: '新手引导' },
+  ];
+
+  function renderEditorView() {
+    if (!ui) return;
+    var body = ui.dash.querySelector('#cm-dbody');
+    ensureCardDataShape();
+    var html = '';
+    // 顶部工具条
+    html += '<div class="cm-mod-detail" style="margin-bottom:8px;padding:8px 10px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span class="cm-md-name" style="font-size:12px">编辑器</span>'
+      + '<span class="cm-md-desc">点击左侧文件开始编辑，保存后自动同步到角色卡</span>'
+      + '<div style="margin-left:auto;display:flex;gap:4px">'
+      + '<button class="cm-btn" data-edit-act="preview" style="padding:4px 10px;font-size:11px">预览导出</button>'
+      + '<button class="cm-btn" data-edit-act="copy-json" style="padding:4px 10px;font-size:11px">复制JSON</button>'
+      + '</div></div></div>';
+    // 文件树 + 编辑器面板
+    html += '<div class="cm-editor-wrap">';
+    html += '<div class="cm-file-tree" id="cm-file-tree">' + renderFileTree() + '</div>';
+    html += '<div class="cm-editor-panel" id="cm-editor-panel">';
+    if (editorState.currentPath) {
+      html += renderEditorBody();
+    } else {
+      html += '<div class="cm-editor-placeholder">点击左侧文件开始编辑<br>支持字段、备用开场白、正则脚本、世界书条目</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    // 预览区（默认隐藏，点击预览按钮后显示）
+    html += '<div class="cm-editor-preview" id="cm-editor-preview" style="display:none">'
+      + '<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--cm-border-soft);background:var(--cm-bg);position:sticky;top:0">'
+      + '<span style="font-size:11px;font-weight:600;color:var(--cm-text)">导出预览</span>'
+      + '<span style="font-size:10px;color:var(--cm-dim2)" id="cm-preview-size"></span>'
+      + '<div style="margin-left:auto;display:flex;gap:4px">'
+      + '<button class="cm-btn" data-edit-act="copy-preview" style="padding:3px 8px;font-size:10px">复制</button>'
+      + '<button class="cm-btn" data-edit-act="close-preview" style="padding:3px 8px;font-size:10px">关闭</button>'
+      + '</div></div>'
+      + '<pre id="cm-preview-pre"></pre>'
+      + '</div>';
+    body.innerHTML = html;
+    bindEditorEvents();
+    updateCompletion();
+  }
+
+  // 渲染文件树
+  function renderFileTree() {
+    ensureCardDataShape();
+    var html = '';
+    // 搜索框
+    html += '<input type="text" class="cm-ft-search" id="cm-ft-search" placeholder="搜索字段..." value="' + esc(editorState.searchQuery || '') + '">';
+    // 根文件夹
+    html += '<div class="cm-ft-folder">📁 角色卡</div>';
+    html += '<div class="cm-ft-indent">';
+    // 基础字段
+    EDITOR_BASE_FIELDS.forEach(function(f) {
+      html += renderFileItem(f.key, f.label, cardData[f.key] || '', '📄');
+    });
+    // 备用开场白
+    var ag = cardData.alternate_greetings || [];
+    html += '<div class="cm-ft-folder" style="margin-top:4px">📁 备用开场白 (' + ag.length + ')</div>';
+    html += '<div class="cm-ft-indent">';
+    if (ag.length === 0) {
+      html += '<div class="cm-ft-item" style="opacity:.5;cursor:default">— 无 —</div>';
+    } else {
+      ag.forEach(function(g, i) {
+        html += renderFileItem('alternate_greetings.' + i, '开场白' + (i + 1), g || '', '📄');
+      });
+    }
+    html += '</div>';
+    // 正则脚本
+    var rs = cardData.regex_scripts || [];
+    html += '<div class="cm-ft-folder" style="margin-top:4px">📁 正则脚本 (' + rs.length + ')</div>';
+    html += '<div class="cm-ft-indent">';
+    if (rs.length === 0) {
+      html += '<div class="cm-ft-item" style="opacity:.5;cursor:default">— 无 —</div>';
+    } else {
+      rs.forEach(function(r, i) {
+        var label = (r && r.scriptName) ? r.scriptName : ('脚本' + (i + 1));
+        html += renderFileItem('regex_scripts.' + i, label, (r ? JSON.stringify(r) : ''), '📄');
+      });
+    }
+    html += '</div>';
+    // 世界书
+    var cb = cardData.character_book || { entries: [] };
+    var entries = cb.entries || [];
+    html += '<div class="cm-ft-folder" style="margin-top:4px">📁 世界书 (' + entries.length + ')</div>';
+    html += '<div class="cm-ft-indent">';
+    if (entries.length === 0) {
+      html += '<div class="cm-ft-item" style="opacity:.5;cursor:default">— 无 —</div>';
+    } else {
+      entries.forEach(function(e, i) {
+        var name = e.comment || ('条目' + (i + 1));
+        html += renderFileItem('character_book.entries.' + i + '.content', name, e.content || '', '📄');
+      });
+    }
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  // 渲染单个文件项
+  function renderFileItem(path, label, value, icon) {
+    var preview = '';
+    if (typeof value === 'string') {
+      preview = value.replace(/[\r\n]+/g, ' ').trim().slice(0, 20);
+    } else if (value != null) {
+      try { preview = String(value).slice(0, 20); } catch (_) { preview = ''; }
+    }
+    var display = icon + ' ' + esc(label) + (preview ? ': ' + esc(preview) : '');
+    var active = (editorState.currentPath === path) ? ' active' : '';
+    return '<div class="cm-ft-item' + active + '" data-path="' + esc(path) + '" title="' + esc(label) + '">' + display + '</div>';
+  }
+
+  // 渲染编辑器主体（已选中文件时）
+  function renderEditorBody() {
+    var path = editorState.currentPath;
+    var value = readEditorValue(path);
+    var label = pathLabel(path);
+    var isJson = (path.indexOf('regex_scripts.') === 0);
+    var html = '';
+    html += '<div class="cm-editor-head">';
+    html += '<span class="cm-editor-path">📄 ' + esc(label) + ' <span style="opacity:.6">(' + esc(path) + ')</span>' + (isJson ? ' <span style="color:var(--cm-purple);font-size:10px">[JSON]</span>' : '') + '</span>';
+    html += '<div class="cm-editor-actions">';
+    html += '<button class="cm-btn success" data-edit-act="save" style="padding:4px 10px;font-size:11px">保存</button>';
+    html += '<button class="cm-btn" data-edit-act="reset" style="padding:4px 10px;font-size:11px">重置</button>';
+    html += '</div></div>';
+    html += '<textarea class="cm-editor-textarea" id="cm-editor-textarea" spellcheck="false" placeholder="在此编辑内容...">' + esc(value) + '</textarea>';
+    html += '<div class="cm-editor-stats"><span id="cm-editor-stats">' + (value ? value.length : 0) + ' 字 / ' + countTokens(value) + ' tok</span><span style="opacity:.7">Ctrl+S 保存</span></div>';
+    return html;
+  }
+
+  // 路径 → 友好标签
+  function pathLabel(path) {
+    if (!path) return '';
+    for (var i = 0; i < EDITOR_BASE_FIELDS.length; i++) {
+      if (EDITOR_BASE_FIELDS[i].key === path) return EDITOR_BASE_FIELDS[i].label;
+    }
+    var parts = path.split('.');
+    if (parts[0] === 'alternate_greetings') {
+      return '备用开场白 #' + (parseInt(parts[1], 10) + 1);
+    }
+    if (parts[0] === 'regex_scripts') {
+      var rs = cardData.regex_scripts || [];
+      var r = rs[parseInt(parts[1], 10)];
+      var name = (r && r.scriptName) ? r.scriptName : ('脚本' + (parseInt(parts[1], 10) + 1));
+      return '正则: ' + name;
+    }
+    if (parts[0] === 'character_book' && parts[1] === 'entries') {
+      var idx = parseInt(parts[2], 10);
+      var entries = (cardData.character_book && cardData.character_book.entries) || [];
+      var e = entries[idx];
+      if (e && e.comment) return e.comment;
+      return '世界书条目 #' + (idx + 1);
+    }
+    return path;
+  }
+
+  // 按 path 读取 cardData 中的值
+  function readEditorValue(path) {
+    if (!path) return '';
+    var parts = path.split('.');
+    var cur = cardData;
+    for (var i = 0; i < parts.length; i++) {
+      if (cur == null) return '';
+      cur = cur[parts[i]];
+    }
+    if (cur == null) return '';
+    if (typeof cur === 'object') {
+      try { return JSON.stringify(cur, null, 2); } catch (_) { return ''; }
+    }
+    return String(cur);
+  }
+
+  // 按 path 写回 cardData
+  function writeEditorValue(path, value) {
+    var parts = path.split('.');
+    var cur = cardData;
+    for (var i = 0; i < parts.length - 1; i++) {
+      if (cur[parts[i]] == null || typeof cur[parts[i]] !== 'object') {
+        cur[parts[i]] = {};
+      }
+      cur = cur[parts[i]];
+    }
+    var lastKey = parts[parts.length - 1];
+    // regex_scripts 数组元素是对象，需要 JSON.parse
+    if (path.indexOf('regex_scripts.') === 0) {
+      try { cur[lastKey] = JSON.parse(value); }
+      catch (e) { throw new Error('JSON格式错误：' + e.message); }
+    } else {
+      cur[lastKey] = value;
+    }
+  }
+
+  // 打开编辑器：加载指定路径的值
+  function openEditor(path) {
+    editorState.currentPath = path;
+    editorState.originalValue = readEditorValue(path);
+    renderEditorView();
+    setTimeout(function () {
+      if (!ui) return;
+      var ta = ui.dash.querySelector('#cm-editor-textarea');
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }, 50);
+  }
+
+  // 保存编辑器内容
+  function saveEditorContent(path, value) {
+    try {
+      writeEditorValue(path, value);
+      ensureCardDataShape();
+      saveAll();
+      editorState.originalValue = value;
+      refreshDash();
+      updateCompletion();
+      toast('已保存：' + pathLabel(path));
+    } catch (e) {
+      toast('保存失败：' + (e.message || e), true);
+    }
+  }
+
+  // 绑定编辑器视图事件
+  function bindEditorEvents() {
+    if (!ui) return;
+    var body = ui.dash.querySelector('#cm-dbody');
+    if (!body) return;
+    // 文件树项点击
+    body.querySelectorAll('.cm-ft-item[data-path]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        openEditor(el.getAttribute('data-path'));
+      });
+    });
+    // 编辑器操作按钮
+    body.querySelectorAll('[data-edit-act]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        handleEditorAction(el.getAttribute('data-edit-act'));
+      });
+    });
+    // textarea 实时统计 + Ctrl+S 保存
+    var ta = body.querySelector('#cm-editor-textarea');
+    if (ta) {
+      ta.addEventListener('input', function () {
+        var stats = body.querySelector('#cm-editor-stats');
+        if (stats) stats.textContent = ta.value.length + ' 字 / ' + countTokens(ta.value) + ' tok';
+      });
+      ta.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+          e.preventDefault();
+          if (editorState.currentPath) saveEditorContent(editorState.currentPath, ta.value);
+        }
+      });
+    }
+    // 搜索框过滤
+    var search = body.querySelector('#cm-ft-search');
+    if (search) {
+      search.addEventListener('input', function () {
+        editorState.searchQuery = search.value;
+        filterFileTree(search.value);
+      });
+    }
+  }
+
+  // 文件树过滤
+  function filterFileTree(q) {
+    if (!ui) return;
+    q = (q || '').trim().toLowerCase();
+    ui.dash.querySelectorAll('.cm-ft-item[data-path]').forEach(function (el) {
+      if (!q) { el.style.display = ''; return; }
+      var text = (el.textContent || '').toLowerCase();
+      var path = (el.getAttribute('data-path') || '').toLowerCase();
+      el.style.display = (text.indexOf(q) >= 0 || path.indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
+
+  // 处理编辑器操作
+  function handleEditorAction(act) {
+    if (!ui) return;
+    if (act === 'save') {
+      var ta = ui.dash.querySelector('#cm-editor-textarea');
+      if (ta && editorState.currentPath) saveEditorContent(editorState.currentPath, ta.value);
+    } else if (act === 'reset') {
+      if (editorState.currentPath) {
+        var ta2 = ui.dash.querySelector('#cm-editor-textarea');
+        if (ta2) {
+          ta2.value = editorState.originalValue;
+          var stats = ui.dash.querySelector('#cm-editor-stats');
+          if (stats) stats.textContent = ta2.value.length + ' 字 / ' + countTokens(ta2.value) + ' tok';
+          toast('已重置为原始值');
+        }
+      }
+    } else if (act === 'preview') {
+      showEditorPreview();
+    } else if (act === 'copy-json') {
+      try {
+        var data = buildExportableCard();
+        var txt = JSON.stringify(data, null, 2);
+        copyToClipboardSafe(txt);
+        toast('已复制完整JSON (' + Math.round(txt.length / 1024) + 'KB)');
+      } catch (e) {
+        toast('复制失败：' + (e.message || e), true);
+      }
+    } else if (act === 'copy-preview') {
+      var pre = ui.dash.querySelector('#cm-preview-pre');
+      if (pre) {
+        copyToClipboardSafe(pre.textContent || '');
+        toast('已复制预览内容');
+      }
+    } else if (act === 'close-preview') {
+      var pv = ui.dash.querySelector('#cm-editor-preview');
+      if (pv) pv.style.display = 'none';
+    }
+  }
+
+  // 显示导出预览
+  function showEditorPreview() {
+    if (!ui) return;
+    var pv = ui.dash.querySelector('#cm-editor-preview');
+    var pre = ui.dash.querySelector('#cm-preview-pre');
+    var size = ui.dash.querySelector('#cm-preview-size');
+    if (!pv || !pre) return;
+    try {
+      var data = buildExportableCard();
+      var txt = JSON.stringify(data, null, 2);
+      pre.textContent = txt;
+      if (size) size.textContent = '(' + Math.round(txt.length / 1024) + 'KB · ' + txt.length + ' 字符)';
+      pv.style.display = 'block';
+      toast('已生成导出预览');
+    } catch (e) {
+      pre.textContent = '生成失败：' + (e.message || e);
+      pv.style.display = 'block';
+    }
+  }
+
+  // 安全复制到剪贴板
+  function copyToClipboardSafe(txt) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    } catch (_) {
+      try { if (navigator && navigator.clipboard) navigator.clipboard.writeText(txt); } catch (_2) {}
+    }
   }
 
   function updateCompletion() {
@@ -2532,5 +2917,10 @@
     activateWriteMode: activateWriteMode,
     togglePresetPrompts: togglePresetPrompts,
     fieldPresetRefs: FIELD_PRESET_REFS,
+    // ===== 编辑器视图 =====
+    openEditor: openEditor,
+    saveEditorContent: saveEditorContent,
+    readEditorValue: readEditorValue,
+    showEditorPreview: showEditorPreview,
   };
 })();
