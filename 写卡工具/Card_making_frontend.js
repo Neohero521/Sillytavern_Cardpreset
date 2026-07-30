@@ -2956,19 +2956,30 @@
     else _toolbar.dot.classList.add('off');
   }
 
-  function setExpanded(expanded) {
-    _expanded = expanded;
-    if (!_toolbar) {
-      if (expanded) createToolbar();
+  function removeToolbar() {
+    if (_toolbar) {
+      try { _toolbar.iframe.remove(); } catch (_) {}
+      _toolbar = null;
+    }
+    _expanded = false;
+  }
+
+  // setExpanded：兼容 iframe 方式
+  function setExpanded(v) {
+    _expanded = !!v;
+    if (!_toolbar || !_toolbar.iframe) {
+      if (v && !_toolbar) createToolbar();
       return;
     }
-    if (expanded) {
+    if (_expanded) {
       _toolbar.panel.classList.add('show');
-      _toolbar.fab.classList.add('active');
+      _toolbar.iframe.style.width = '360px';
+      _toolbar.iframe.style.height = '560px';
       renderPanel();
     } else {
       _toolbar.panel.classList.remove('show');
-      _toolbar.fab.classList.remove('active');
+      _toolbar.iframe.style.width = '60px';
+      _toolbar.iframe.style.height = '60px';
     }
   }
 
@@ -2985,7 +2996,7 @@
       dragging = true;
       var t = e.touches ? e.touches[0] : e;
       sx = t.clientX; sy = t.clientY;
-      var rect = _toolbar.container.getBoundingClientRect();
+      var rect = _toolbar.iframe.getBoundingClientRect();
       ox = rect.left; oy = rect.top;
       e.preventDefault();
     };
@@ -2993,10 +3004,10 @@
       if (!dragging) return;
       var t = e.touches ? e.touches[0] : e;
       var dx = t.clientX - sx, dy = t.clientY - sy;
-      _toolbar.container.style.left = (ox + dx) + 'px';
-      _toolbar.container.style.top = (oy + dy) + 'px';
-      _toolbar.container.style.right = 'auto';
-      _toolbar.container.style.bottom = 'auto';
+      _toolbar.iframe.style.left = (ox + dx) + 'px';
+      _toolbar.iframe.style.top = (oy + dy) + 'px';
+      _toolbar.iframe.style.right = 'auto';
+      _toolbar.iframe.style.bottom = 'auto';
     };
     var onUp = function () { dragging = false; };
     title.addEventListener('mousedown', onDown);
@@ -3007,100 +3018,135 @@
     doc.addEventListener('touchend', onUp);
   }
 
-  // 创建悬浮工具条（FAB + 面板），自动注入 parent.document
+  // 创建悬浮工具条：用 iframe 方式（参考原版 createModalIframe，已验证可在 ST 沙箱工作）
+  // 但尺寸做成悬浮小窗，不是全屏。iframe 内部渲染 FAB + 面板。
   function createToolbar() {
     if (_toolbar) {
       // 已存在，直接展开
-      try { _toolbar.panel.classList.add('show'); _toolbar.fab.classList.add('active'); renderPanel(); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
+      try { setExpanded(true); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
       return;
     }
     try {
       if (!_cardData) initCardData();
-      var doc = parentDoc();
-      if (!doc || !doc.body) {
-        console.error('[时之写卡器] parentDoc 无 body，无法创建工具条');
+      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+      if (!pDoc || !pDoc.body) {
+        console.error('[时之写卡器] parent.document 无 body');
         return;
       }
-      console.log('[时之写卡器] parentDoc.body 已就绪，开始创建 DOM');
-      try { injectStyles(); } catch(e) { console.warn('[时之写卡器] injectStyles 失败:', e); }
 
-      var container = doc.createElement('div');
-      container.id = SCRIPT_ID + '-toolbar';
+      // 移除旧实例
+      var old = pDoc.getElementById(SCRIPT_ID + '-toolbar');
+      if (old) old.remove();
 
-      // 折叠态：圆形 FAB
-      var fab = doc.createElement('button');
-      fab.className = 'cm-fab';
-      fab.title = '时之写卡器 · 点击展开';
-      fab.textContent = '⚡';
-      var badge = doc.createElement('span');
-      badge.className = 'cm-badge zero';
-      badge.textContent = '0%';
-      var dot = doc.createElement('span');
-      dot.className = 'cm-dot';
-      fab.appendChild(badge);
-      fab.appendChild(dot);
-      fab.onclick = function () {
-        try {
-          if (!_toolbar) return;
-          _expanded = !_expanded;
-          if (_expanded) {
-            _toolbar.panel.classList.add('show');
-            _toolbar.fab.classList.add('active');
-            renderPanel();
-          } else {
-            _toolbar.panel.classList.remove('show');
-            _toolbar.fab.classList.remove('active');
-          }
-        } catch(e) { console.error('[时之写卡器] FAB 点击失败:', e); }
+      // 创建 iframe（参考原版 createModalIframe）
+      var iframe = pDoc.createElement('iframe');
+      iframe.id = SCRIPT_ID + '-toolbar';
+      iframe.setAttribute('script_id', SCRIPT_ID);
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allowtransparency', 'true');
+      // 悬浮小窗尺寸：折叠态 60x60，展开态 360x560，通过 JS 动态调整
+      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:60px;height:60px;border:none;z-index:999999;background:transparent;transition:width .25s ease,height .25s ease;';
+
+      // 用 srcdoc 初始化 iframe 内容
+      iframe.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><style>'
+        + '*{margin:0;padding:0;box-sizing:border-box}'
+        + 'html,body{width:100%;height:100%;overflow:hidden;background:transparent}'
+        + '.cm-fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s;position:relative}'
+        + '.cm-fab:hover{transform:scale(1.08)}'
+        + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
+        + '.cm-badge.zero{background:#6b7280}'
+        + '.cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
+        + '.cm-dot.off{background:#6b7280}'
+        + '.cm-panel{position:absolute;bottom:60px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;animation:cmPop .22s ease-out}'
+        + '.cm-panel.show{display:flex}'
+        + '@keyframes cmPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
+        + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
+        + '.cm-title-btns{display:flex;gap:6px}'
+        + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1}'
+        + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
+        + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+        + '.cm-status .stat{display:flex;align-items:center;gap:4px;color:#8b949e}'
+        + '.cm-status .stat b{color:#e6edf3;font-weight:600}'
+        + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
+        + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
+        + '.cm-section{margin-bottom:10px}'
+        + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
+        + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
+        + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
+        + '.cm-field:last-child{border-bottom:none}'
+        + '.cm-field-name{color:#8b949e}'
+        + '.cm-field-status{color:#484f58}'
+        + '.cm-field-status.ok{color:#3fb950}'
+        + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
+        + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer;transition:all .15s}'
+        + '.cm-btn:hover{background:#30363d;border-color:#8b949e}'
+        + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
+        + '.cm-preset-group{margin-bottom:6px}'
+        + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
+        + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
+        + '.cm-preset-item:hover{background:#161b22}'
+        + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
+        + '.cm-preset-item .toggle.on{background:#3fb950}'
+        + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
+        + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
+        + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}'
+        + '</style></head><body>'
+        + '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
+        + '<div class="cm-panel" id="panel"></div>'
+        + '</body></html>';
+
+      var loaded = false;
+      var onReady = function () {
+        if (loaded) return;
+        loaded = true;
+        var d = iframe.contentDocument || iframe.contentWindow.document;
+        var fab = d.getElementById('fab');
+        var badge = d.getElementById('badge');
+        var panel = d.getElementById('panel');
+        // dot 元素（同步状态指示）
+        var dot = d.createElement('span');
+        dot.className = 'cm-dot';
+        fab.appendChild(dot);
+
+        _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
+
+        // FAB 点击切换展开/收起
+        fab.addEventListener('click', function () {
+          setExpanded(!_expanded);
+        });
+
+        console.log('[时之写卡器] ✅ iframe 工具条创建完成');
+
+        // 以下非关键步骤，失败不影响工具条显示
+        try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable 失败:', e); }
+        try { updateBadge(); } catch(e) { console.warn('[时之写卡器] updateBadge 失败:', e); }
+        try { updateDot(); } catch(e) { console.warn('[时之写卡器] updateDot 失败:', e); }
+
+        // 启动聊天监听
+        if (!_listenersRegistered) {
+          try {
+            registerChatListeners(function () { autoExtractFromChat(); });
+            _listenersRegistered = true;
+          } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
+        }
+        setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
+
+        // 默认展开
+        setExpanded(true);
       };
 
-      // 展开态面板
-      var panel = doc.createElement('div');
-      panel.className = 'cm-panel';
-      container.appendChild(fab);
-      container.appendChild(panel);
-      doc.body.appendChild(container);
-      console.log('[时之写卡器] DOM 已挂载到 body');
-
-      _toolbar = { container: container, fab: fab, badge: badge, dot: dot, panel: panel };
-
-      // 以下都是非关键步骤，失败不影响工具条显示
-      try { makeDraggable(); } catch(e) { console.warn('[时之写卡器] makeDraggable 失败:', e); }
-      try { updateBadge(); } catch(e) { console.warn('[时之写卡器] updateBadge 失败:', e); }
-      try { updateDot(); } catch(e) { console.warn('[时之写卡器] updateDot 失败:', e); }
-
-      // 默认展开
-      _expanded = true;
-      try {
-        panel.classList.add('show');
-        fab.classList.add('active');
-        renderPanel();
-      } catch(e) { console.warn('[时之写卡器] renderPanel 失败（工具条已显示）:', e); }
-
-      // 启动聊天监听（仅一次）
-      if (!_listenersRegistered) {
-        try {
-          registerChatListeners(function () { autoExtractFromChat(); });
-          _listenersRegistered = true;
-        } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
-      }
-      // 首次拉取一次历史消息
-      setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
-
-      console.log('[时之写卡器] ✅ 工具条创建完成');
+      iframe.addEventListener('load', onReady, { once: true });
+      pDoc.body.appendChild(iframe);
+      console.log('[时之写卡器] iframe 已挂载到 parent.document.body');
+      // 兜底：1.5秒后如果 load 没触发，强制初始化
+      setTimeout(function () { if (!loaded) { console.warn('[时之写卡器] load 事件未触发，强制初始化'); try { onReady(); } catch(e) { console.error('[时之写卡器] 强制初始化失败:', e); } } }, 1500);
     } catch (e) {
       console.error('[时之写卡器] ❌ createToolbar 整体失败:', e);
-      addFallbackButton();
     }
   }
 
-  function removeToolbar() {
-    if (_toolbar) {
-      try { _toolbar.container.remove(); } catch (_) {}
-      _toolbar = null;
-    }
-    _expanded = false;
-  }
+  // renderPanel / wirePanelEvents / removeToolbar / setExpanded 已在上方定义
+  // （旧版函数操作 _toolbar.panel，现在 panel 指向 iframe 内的元素，完全兼容）
 
   // 从聊天消息中提取 ```json ... ``` 代码块
   function extractJsonBlocks(text) {
