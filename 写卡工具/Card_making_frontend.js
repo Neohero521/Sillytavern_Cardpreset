@@ -31,7 +31,7 @@
         var iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
-        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;border:none;z-index:99999;background:#0d1117;';
+        iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:52px;height:52px;border:none;z-index:99999;background:transparent;transition:width .3s ease,height .3s ease,border-radius .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.5);';
         iframe.addEventListener('load', function() {
           try {
             var d = iframe.contentDocument || iframe.contentWindow.document;
@@ -39,16 +39,38 @@
             s.textContent = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;width:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;font-size:14px}
-.app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
-.topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#161b22;border-bottom:1px solid #30363d;min-height:42px}
-.topbar h1{font-size:1em;background:linear-gradient(90deg,#f78166,#d2a8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar .phase{font-size:.75em;color:#d2a8ff;margin-left:8px;flex-shrink:0}
-.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.topbar-btn{padding:4px 10px;background:rgba(210,168,255,.1);color:#d2a8ff;border:1px solid #30363d;border-radius:5px;cursor:pointer;font-size:11px;transition:all .2s;white-space:nowrap}
-.topbar-btn:hover{background:rgba(210,168,255,.2);border-color:#d2a8ff}
-.topbar-btn.active{background:rgba(247,129,102,.2);color:#f78166;border-color:#f78166}
-.preset-panel{position:absolute;top:42px;left:0;right:0;max-height:60vh;overflow-y:auto;background:#161b22;border-bottom:1px solid #30363d;z-index:50;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:transparent;color:#c9d1d9;font-size:14px}
+
+/* ===== 悬浮按钮（折叠态） ===== */
+.fab{position:fixed;bottom:0;right:0;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#f78166,#d2a8ff);border:none;cursor:pointer;z-index:1;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;box-shadow:0 4px 16px rgba(247,129,102,.4);transition:transform .2s ease,box-shadow .2s ease}
+.fab:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(247,129,102,.5)}
+.fab:active{transform:scale(.95)}
+.fab.hidden{display:none}
+
+/* ===== 悬浮面板（展开态） ===== */
+.panel{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;overflow:hidden;background:#0d1117;border-radius:14px;border:1px solid #30363d;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.panel.hidden{display:none}
+
+/* 面板头部（可拖拽） */
+.panel-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#161b22,#1c2230);border-bottom:1px solid #30363d;cursor:move;user-select:none;min-height:40px}
+.panel-header .ph-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.panel-header .ph-title{font-size:.85em;font-weight:700;background:linear-gradient(90deg,#f78166,#d2a8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-header .ph-phase{font-size:.7em;color:#d2a8ff;background:rgba(210,168,255,.1);padding:2px 8px;border-radius:10px;flex-shrink:0}
+.panel-header .ph-controls{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.ph-btn{width:26px;height:26px;border-radius:6px;border:none;background:rgba(110,118,129,.15);color:#8b949e;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.ph-btn:hover{background:rgba(110,118,129,.3);color:#c9d1d9}
+.ph-btn.close:hover{background:rgba(248,81,73,.2);color:#f85149}
+
+/* Tab 导航 */
+.tab-bar{flex-shrink:0;display:flex;background:#161b22;border-bottom:1px solid #30363d;padding:0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-bar::-webkit-scrollbar{height:0}
+.tab-btn{flex:1;min-width:auto;padding:8px 6px;background:transparent;border:none;color:#8b949e;font-size:.75em;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .15s;font-weight:500;white-space:nowrap}
+.tab-btn:hover{color:#c9d1d9}
+.tab-btn.active{color:#f78166;border-bottom-color:#f78166;background:rgba(247,129,102,.06)}
+
+/* Tab 内容区 */
+.tab-content{flex:1;min-height:0;overflow:hidden;display:none;flex-direction:column}
+.tab-content.active{display:flex}
 .preset-section{margin-bottom:12px}
 .preset-section-title{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;margin-bottom:6px;font-size:.8em;color:#d2a8ff;font-weight:600}
 .preset-section-title .section-meta{font-size:.75em;color:#8b949e;font-weight:400}
@@ -66,9 +88,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .preset-switch input:checked + .preset-slider:before{transform:translateX(14px);background-color:#3fb950}
 .preset-empty{padding:14px;text-align:center;color:#8b949e;font-size:.8em}
 .preset-hint{padding:8px 10px;background:rgba(210,168,255,.05);border:1px dashed #30363d;border-radius:5px;font-size:.72em;color:#8b949e;line-height:1.5;margin-bottom:8px}
-.main{flex:1 1 0;display:flex;min-height:0;overflow:hidden}
-.chat-panel{flex:1.4 1 0;display:flex;flex-direction:column;min-width:0;border-right:1px solid #30363d;min-height:0;overflow:hidden}
-.preview-panel{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:#0d1117}
+
+/* 对话区容器（tab内容） */
+.chat-tab{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1;position:relative}
 .chat-header{flex-shrink:0;padding:6px 12px;background:#161b22;border-bottom:1px solid #21262d;font-size:.78em;color:#d2a8ff;display:flex;align-items:center;gap:5px}
 .chat-messages{flex:1 1 0;overflow-y:auto;padding:10px;min-height:0;-webkit-overflow-scrolling:touch}
 .chat-msg{display:flex;gap:8px;margin-bottom:12px;align-items:flex-start}
@@ -275,58 +297,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .group-mgr-item .gm-count{color:#8b949e;font-size:.85em}
 .group-mgr-item .gm-toggle{padding:2px 8px;border-radius:3px;font-size:.85em;cursor:pointer;border:1px solid #30363d;background:#161b22;color:#8b949e}
 .group-mgr-item .gm-toggle.on{background:rgba(63,185,80,.15);color:#3fb950;border-color:rgba(63,185,80,.3)}
-.mobile-tabs{display:none;flex-shrink:0;background:#161b22;border-bottom:1px solid #30363d}
-.mobile-tab{flex:1;padding:9px 12px;background:transparent;border:none;color:#8b949e;font-size:.85em;cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .15s;font-weight:500}
-.mobile-tab.active{color:#f78166;border-bottom-color:#f78166;background:rgba(247,129,102,.08)}
-@media(max-width:768px){
-  .main{flex-direction:column}
-  .mobile-tabs{display:flex}
-  .chat-panel,.preview-panel{flex:1 1 0;border:none;min-height:0}
-  .preview-panel{display:none}
-  .main.tab-preview .preview-panel{display:flex}
-  .main.tab-preview .chat-panel{display:none}
-  .topbar h1{font-size:.9em}
-  .topbar .phase{font-size:.7em}
+
+/* 预览区容器 */
+.preview-tab{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1}
+
+/* 开关区容器 */
+.preset-tab{flex:1;overflow-y:auto;padding:10px 12px;-webkit-overflow-scrolling:touch}
+
+/* 导出区容器 */
+.export-tab{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+
+@media(max-width:520px){
   .chat-msg .bubble{max-width:78%}
   .opt-compare{grid-template-columns:1fr}
   .quick-actions{max-height:70px}
   .mod-focus-btn{font-size:.65em;padding:3px 8px}
+  .tab-btn{font-size:.68em;padding:6px 4px}
+  .welcome-features{grid-template-columns:1fr}
 }
 @media(max-height:500px){
-  .topbar{padding:6px 10px}
-  .topbar h1{font-size:.85em;margin:0}
-  .topbar .phase{font-size:.7em}
   .mod-focus{padding:4px 8px;gap:4px}
   .mod-focus-btn{font-size:.7em;padding:3px 6px}
   .chat-input-area{padding:6px 10px;gap:4px}
   .chat-input{min-height:36px;padding:6px}
   .quick-actions{gap:4px}
   .quick-btn{font-size:.7em;padding:4px 8px}
-  .preview-panel .pv-header{padding:6px 10px;font-size:.8em}
   .pv-section h3{font-size:.78em;margin-bottom:2px}
   .pv-section{padding:6px 10px}
   .pv-content{font-size:.72em;line-height:1.4}
   .json-modal-content,.modal-content{padding:10px;max-height:90vh}
   .modal-body{max-height:60vh}
-}
-@media(orientation:landscape) and (max-height:600px){
-  .app{height:100%;height:100vh}
-  .topbar{padding:5px 8px;min-height:32px}
-  .topbar h1{font-size:.85em}
-  .mod-focus{padding:3px 6px;gap:3px}
-  .mod-focus-btn{font-size:.65em;padding:3px 6px}
-  .chat-input-area{padding:4px 8px;gap:3px}
-  .chat-input{min-height:32px;padding:5px;font-size:.85em}
-  .send-btn{padding:5px 12px;font-size:.85em}
-  .quick-actions{gap:3px;max-height:60px}
-  .quick-btn{font-size:.68em;padding:3px 6px}
-  .pv-body{padding:6px}
-  .pv-section{padding:4px 8px}
-  .pv-section h3{font-size:.78em}
-  .pv-content{font-size:.72em;line-height:1.4}
-  .welcome{padding:16px}
-  .welcome h2{font-size:1.1em;margin-bottom:6px}
-  .welcome p{font-size:.8em;margin-bottom:8px}
 }
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -2884,11 +2884,74 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       var progress = 0;
       var moduleProgress = { axiom: 0, soft_rules: 0, core_rules: 0, near_constraint: 0, scene_mechanics: 0, entity_interact: 0, narrative_bg: 0, dynamic_adapt: 0, init_var: 0, var_update_rule: 0 };
 
+      function expandPanel() {
+        var iframe = window.frameElement;
+        if (iframe) {
+          iframe.style.width = 'min(94vw, 480px)';
+          iframe.style.height = 'min(88vh, 640px)';
+          iframe.style.borderRadius = '14px';
+        }
+      }
+
+      function collapsePanel() {
+        var iframe = window.frameElement;
+        if (iframe) {
+          iframe.style.width = '52px';
+          iframe.style.height = '52px';
+          iframe.style.borderRadius = '50%';
+        }
+      }
+
+      function showFab() {
+        collapsePanel();
+        doc.body.innerHTML = '<button class="fab" id="fabBtn" title="打开时之写卡器">⚡</button>';
+        var fab = doc.getElementById('fabBtn');
+        if (fab) fab.addEventListener('click', function() { expandPanel(); renderWelcome(); });
+      }
+
+      function switchTab(tabName) {
+        var tabs = doc.querySelectorAll('.tab-btn');
+        var contents = doc.querySelectorAll('.tab-content');
+        for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tabName);
+        for (var j = 0; j < contents.length; j++) contents[j].classList.toggle('active', contents[j].getAttribute('data-tab') === tabName);
+        if (tabName === 'preset') { var pp = doc.getElementById('presetPanel'); if (pp && pp.children.length === 0) renderPresetPanel(); }
+      }
+
+      function initDrag() {
+        var header = doc.getElementById('panelHeader');
+        if (!header) return;
+        var iframe = window.frameElement;
+        if (!iframe) return;
+        var dragging = false, sx, sy, sLeft, sTop;
+        header.addEventListener('mousedown', function(e) {
+          if (e.target.classList.contains('ph-btn')) return;
+          dragging = true; sx = e.clientX; sy = e.clientY;
+          var r = iframe.getBoundingClientRect();
+          sLeft = r.left; sTop = r.top;
+          iframe.style.transition = 'none';
+          iframe.style.right = 'auto'; iframe.style.bottom = 'auto';
+          e.preventDefault();
+        });
+        doc.addEventListener('mousemove', function(e) {
+          if (!dragging) return;
+          iframe.style.left = Math.max(0, Math.min(window.innerWidth - 100, sLeft + e.clientX - sx)) + 'px';
+          iframe.style.top = Math.max(0, Math.min(window.innerHeight - 60, sTop + e.clientY - sy)) + 'px';
+        });
+        doc.addEventListener('mouseup', function() { if (dragging) { dragging = false; iframe.style.transition = ''; } });
+      }
+
       function renderWelcome() {
+        expandPanel();
         doc.body.innerHTML =
-          '<button class="close-btn" id="closeBtn">×</button>' +
-          '<div class="app">' +
-            '<div class="welcome">' +
+          '<div class="panel">' +
+            '<div class="panel-header" id="panelHeader">' +
+              '<div class="ph-left"><span class="ph-title">⚡ 时之写卡器</span></div>' +
+              '<div class="ph-controls">' +
+                '<button class="ph-btn" id="minimizeBtn" title="最小化">−</button>' +
+                '<button class="ph-btn close" id="closeBtn" title="关闭">×</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="welcome" style="overflow-y:auto">' +
               '<h2>⚡ 时之写卡器</h2>' +
               '<p>基于SillyTavern原生机制与ST权重分层8体系，通过AI对话逐步引导你创建专业级世界模式角色卡。<br>和AI聊天就能生成符合ST规范的角色卡！</p>' +
               '<div class="welcome-features">' +
@@ -2907,22 +2970,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '</div>' +
           '</div>';
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
-        var presetToggleBtn = doc.getElementById('presetToggleBtn');
-        if (presetToggleBtn) {
-          presetToggleBtn.addEventListener('click', function() {
-            var panel = doc.getElementById('presetPanel');
-            if (!panel) return;
-            var isVisible = panel.style.display !== 'none';
-            if (isVisible) {
-              panel.style.display = 'none';
-              presetToggleBtn.classList.remove('active');
-            } else {
-              renderPresetPanel();
-              panel.style.display = 'block';
-              presetToggleBtn.classList.add('active');
-            }
-          });
-        }
+        doc.getElementById('minimizeBtn').addEventListener('click', showFab);
         doc.getElementById('startBtn').addEventListener('click', function() {
           renderChatUI();
           addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
@@ -2933,26 +2981,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           contBtn.style.display = 'inline-block';
           contBtn.addEventListener('click', continueFromSave);
         }
+        initDrag();
       }
 
       function renderChatUI() {
+        expandPanel();
         doc.body.innerHTML =
-          '<button class="close-btn" id="closeBtn">×</button>' +
-          '<div class="app">' +
-            '<div class="topbar">' +
-              '<h1>⚡ 时之写卡器</h1>' +
-              '<div class="topbar-right">' +
-                '<button class="topbar-btn" id="presetToggleBtn" title="提示词开关">⚙️ 提示词开关</button>' +
-                '<span class="phase" id="phaseLabel">0%</span>' +
+          '<div class="panel">' +
+            '<div class="panel-header" id="panelHeader">' +
+              '<div class="ph-left">' +
+                '<span class="ph-title">⚡ 时之写卡器</span>' +
+                '<span class="ph-phase" id="phaseLabel">0%</span>' +
+              '</div>' +
+              '<div class="ph-controls">' +
+                '<button class="ph-btn" id="minimizeBtn" title="最小化">−</button>' +
+                '<button class="ph-btn close" id="closeBtn" title="关闭">×</button>' +
               '</div>' +
             '</div>' +
-            '<div class="preset-panel" id="presetPanel" style="display:none"></div>' +
-            '<div class="main">' +
-              '<div class="mobile-tabs">' +
-                '<button class="mobile-tab active" data-tab="chat">💬 对话</button>' +
-                '<button class="mobile-tab" data-tab="preview">📋 预览</button>' +
-              '</div>' +
-              '<div class="chat-panel" style="position:relative">' +
+            '<div class="tab-bar">' +
+              '<button class="tab-btn active" data-tab="chat">💬 对话</button>' +
+              '<button class="tab-btn" data-tab="preview">📋 预览</button>' +
+              '<button class="tab-btn" data-tab="preset">⚙️ 开关</button>' +
+              '<button class="tab-btn" data-tab="export">💾 导出</button>' +
+            '</div>' +
+            '<div class="tab-content active" data-tab="chat">' +
+              '<div class="chat-tab">' +
                 '<div class="chat-header">💬 AI对话创作 <span style="color:#484f58;font-size:10px">Enter发送</span></div>' +
                 '<div class="mod-focus" id="modFocus">' +
                   '<button class="mod-focus-btn" data-mod="axiom">🏛️ 基础公理</button>' +
@@ -2978,17 +3031,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                   '<div class="chat-input-char-count" id="charCount">0 / 2000</div>' +
                   '<div class="chat-send-row">' +
                     '<button class="btn btn-primary" id="sendBtn" style="flex:1">发送</button>' +
-                    '<button class="btn btn-success" id="saveBtn">💾 导出</button>' +
-                    '<button class="btn btn-danger" id="clearChatBtn" title="清空对话记录（不影响角色卡内容）">🗑️ 清空对话</button>' +
                   '</div>' +
                 '</div>' +
               '</div>' +
-              '<div class="preview-panel">' +
+            '</div>' +
+            '<div class="tab-content" data-tab="preview">' +
+              '<div class="preview-tab">' +
                 '<div class="preview-header">' +
                   '<span>📋 预览</span>' +
                   '<span id="completionLabel" style="font-size:.72em;color:#3fb950">0%</span>' +
                 '</div>' +
                 '<div class="preview-body" id="previewBody"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="tab-content" data-tab="preset">' +
+              '<div class="preset-tab" id="presetPanel"></div>' +
+            '</div>' +
+            '<div class="tab-content" data-tab="export">' +
+              '<div class="export-tab">' +
+                '<button class="btn btn-success" id="saveBtn" style="width:100%;padding:10px;font-size:.9em">💾 导出角色卡</button>' +
+                '<button class="btn btn-warn" id="clearChatBtn" style="width:100%;padding:10px;font-size:.9em">🗑️ 清空对话记录</button>' +
+                '<div class="preset-hint" style="margin-top:8px">💡 导出后可在弹窗中复制JSON或直接下载文件。支持V2/V3/Lorebook格式。</div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -2998,8 +3061,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         renderPreview();
         renderModDash();
         updateCharCount();
-        // 预加载预设提示词缓存（不渲染面板，等用户点开再渲染）
         try { getPresetPrompts(true); } catch(_) {}
+        initDrag();
       }
 
       function renderPresetPanel() {
@@ -3094,6 +3157,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function bindEvents() {
         doc.getElementById('closeBtn').addEventListener('click', closeModal);
+        var minBtn = doc.getElementById('minimizeBtn');
+        if (minBtn) minBtn.addEventListener('click', showFab);
         var input = doc.getElementById('chatInput');
         var sendBtn = doc.getElementById('sendBtn');
         sendBtn.addEventListener('click', handleSend);
@@ -3104,7 +3169,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           updateCharCount();
           updateSendBtnPulse();
         });
-        doc.getElementById('saveBtn').addEventListener('click', saveCharacter);
+        var saveBtnEl = doc.getElementById('saveBtn');
+        if (saveBtnEl) saveBtnEl.addEventListener('click', saveCharacter);
         var clearChatBtn = doc.getElementById('clearChatBtn');
         if (clearChatBtn) {
           clearChatBtn.addEventListener('click', function() {
@@ -3149,17 +3215,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             }
           });
         }
-        var mTabs = doc.querySelectorAll('.mobile-tab');
-        for (var ti = 0; ti < mTabs.length; ti++) {
-          mTabs[ti].addEventListener('click', function() {
-            var tab = this.getAttribute('data-tab');
-            var mainEl = doc.querySelector('.main');
-            if (!mainEl) return;
-            if (tab === 'preview') { mainEl.classList.add('tab-preview'); }
-            else { mainEl.classList.remove('tab-preview'); }
-            for (var tj = 0; tj < mTabs.length; tj++) {
-              mTabs[tj].classList.toggle('active', mTabs[tj].getAttribute('data-tab') === tab);
-            }
+        var tabBtns = doc.querySelectorAll('.tab-btn');
+        for (var ti = 0; ti < tabBtns.length; ti++) {
+          tabBtns[ti].addEventListener('click', function() {
+            switchTab(this.getAttribute('data-tab'));
           });
         }
       }
@@ -5343,7 +5402,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         });
       }
 
-      renderWelcome();
+      showFab();
 
     } catch(e) {
       console.error('时之写卡器 Error:', e);
