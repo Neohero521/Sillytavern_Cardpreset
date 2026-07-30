@@ -21,7 +21,7 @@
     return cn + Math.ceil(enWords * 0.75);
   }
 
-  // ===== Iframe创建 =====
+  // ===== 悬浮窗容器创建 =====
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
@@ -31,10 +31,23 @@
         var iframe = parentDoc.createElement('iframe');
         iframe.id = SCRIPT_ID + '-modal';
         iframe.setAttribute('script_id', SCRIPT_ID);
+        iframe.setAttribute('frameborder', '0');
+        // 关键：显式设置 srcdoc，确保 iframe 有内容，load 事件一定会触发
+        iframe.srcdoc = '<!doctype html><html><head></head><body></body></html>';
         iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:min(94vw,480px);height:min(88vh,640px);border:none;z-index:99999;background:#0d1117;transition:width .3s ease,height .3s ease,border-radius .3s ease,box-shadow .3s ease;box-shadow:0 8px 40px rgba(0,0,0,.6);border-radius:14px;border:1px solid #30363d;';
-        iframe.addEventListener('load', function() {
+        var mounted = false;
+        function mount() {
+          if (mounted) return;
+          mounted = true;
           try {
-            var d = iframe.contentDocument || iframe.contentWindow.document;
+            var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+            if (!d || !d.body || !d.head) {
+              // 再等一轮
+              setTimeout(function() { if (!mounted) mount(); }, 50);
+              return;
+            }
+            d.documentElement.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
+            d.body.style.cssText = 'width:100%;height:100%;margin:0;padding:0;overflow:hidden;';
             var s = d.createElement('style');
             s.textContent = `
 *{margin:0;padding:0;box-sizing:border-box}
@@ -333,12 +346,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 `;
             d.head.appendChild(s);
             resolve(d);
-          } catch (e) { reject(e); }
-        });
+            return;
+          } catch (e) { reject(e); return; }
+          // 没 body 的话重试
+          mounted = false;
+          setTimeout(function() { if (!mounted) mount(); }, 50);
+        }
+        iframe.addEventListener('load', mount, { once: true });
         parentDoc.body.appendChild(iframe);
-        setTimeout(function() {
-          try { if (!iframe.contentDocument || !iframe.contentDocument.body) reject(new Error('iframe timeout')); } catch(e) { reject(e); }
-        }, 4000);
+        // 参照 index.js：1秒兜底，防止 load 事件不触发
+        setTimeout(mount, 1000);
       } catch (e) { reject(e); }
     });
   }
