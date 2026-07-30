@@ -21,7 +21,97 @@
     return cn + Math.ceil(enWords * 0.75);
   }
 
-  // ===== 悬浮窗容器创建（和原始Card_making_tool.js一致：先全屏确保可用） =====
+  // ===== SillyTavern API 封装（参考 index.js 的全局函数调用方式） =====
+  function _g(name) {
+    try { if (typeof window[name] === 'function') return window[name]; } catch(_) {}
+    try { if (typeof window.parent !== 'undefined' && typeof window.parent[name] === 'function') return window.parent[name]; } catch(_) {}
+    return null;
+  }
+
+  // 获取当前聊天记录（最近50条，过滤隐藏消息）
+  function fetchChatMessages() {
+    try {
+      var getLastMessageId = _g('getLastMessageId');
+      var getChatMessages = _g('getChatMessages');
+      if (!getLastMessageId || !getChatMessages) return [];
+      var lastId = getLastMessageId();
+      if (lastId < 0) return [];
+      var startId = Math.max(0, lastId - 49);
+      var msgs = getChatMessages(startId + '-' + lastId, { hide_state: 'all' });
+      if (!Array.isArray(msgs)) return [];
+      return msgs.filter(function(m) { return !m.is_hidden; }).map(function(m) {
+        return { messageId: m.message_id, role: m.role, content: m.message || '', name: m.name || '' };
+      });
+    } catch(e) { console.warn('fetchChatMessages failed:', e); return []; }
+  }
+
+  // 获取当前角色名
+  function fetchCurrentCharName() {
+    try {
+      var fn = _g('getCurrentCharacterName');
+      if (fn) return fn() || '';
+    } catch(_) {}
+    try {
+      var ctx = _g('getContext');
+      if (ctx) { var c = ctx(); if (c && c.name2) return c.name2; }
+    } catch(_) {}
+    return '';
+  }
+
+  // 获取所有角色名列表
+  function fetchCharNames() {
+    try {
+      var fn = _g('getCharacterNames');
+      if (fn) return fn() || [];
+    } catch(_) {}
+    return [];
+  }
+
+  // 获取当前预设（in_use）
+  function fetchPreset() {
+    try {
+      var fn = _g('getPreset');
+      if (fn) return fn('in_use');
+    } catch(_) {}
+    return null;
+  }
+
+  // 发送消息到 SillyTavern 聊天（参考 index.js: triggerSlash('/send text|/trigger')）
+  async function sendToChat(text) {
+    try {
+      var fn = _g('triggerSlash');
+      if (fn) { await fn('/send ' + text + '|/trigger'); return true; }
+    } catch(e) { console.warn('sendToChat failed:', e); }
+    return false;
+  }
+
+  // 注册聊天事件实时监听（返回 stop 函数数组，用于卸载时清理）
+  var _eventStops = [];
+  function registerChatListeners(onUpdate) {
+    try {
+      var evtOn = _g('eventOn');
+      var te = (typeof tavern_events !== 'undefined') ? tavern_events : (window.parent && window.parent.tavern_events);
+      if (!evtOn || !te) return;
+      var events = ['CHARACTER_MESSAGE_RENDERED', 'USER_MESSAGE_RENDERED', 'MESSAGE_RECEIVED', 'GENERATION_ENDED', 'MESSAGE_UPDATED', 'CHAT_CHANGED'];
+      events.forEach(function(evName) {
+        if (te[evName]) {
+          try {
+            var r = evtOn(te[evName], function() {
+              if (typeof onUpdate === 'function') setTimeout(onUpdate, 100);
+            });
+            if (r && typeof r.stop === 'function') _eventStops.push(r.stop);
+          } catch(_) {}
+        }
+      });
+    } catch(e) { console.warn('registerChatListeners failed:', e); }
+  }
+
+  function cleanupChatListeners() {
+    _eventStops.forEach(function(stop) { try { stop(); } catch(_) {} });
+    _eventStops = [];
+  }
+
+  // ===== Iframe创建 =====
   function createModalIframe() {
     return new Promise(function(resolve, reject) {
       try {
@@ -373,6 +463,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
   function closeModal() {
     try { var pDoc = (window.parent && window.parent.document) ? window.parent.document : document; var m = pDoc.getElementById(SCRIPT_ID + '-modal'); if (m) m.remove(); } catch(e) {}
+    cleanupChatListeners();
   }
 
   // ===== 世界书名称生成 =====
@@ -2943,10 +3034,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
       function renderWelcome() {
         expandPanel();
+        // 同步当前角色卡和聊天记录
+        var charName = fetchCurrentCharName();
+        var chatMsgs = fetchChatMessages();
+        var hasChat = chatMsgs.length > 0;
+        var preset = fetchPreset();
+        var presetLoaded = preset && preset.prompts && preset.prompts.length > 0;
+
         doc.body.innerHTML =
           '<div class="panel">' +
             '<div class="panel-header" id="panelHeader">' +
-              '<div class="ph-left"><span class="ph-title">⚡ 时之写卡器</span></div>' +
+              '<div class="ph-left"><span class="ph-title">⚡ 时之写卡器</span>' +
+                (charName ? '<span class="ph-phase">👤 ' + escHtml(charName) + '</span>' : '') +
+              '</div>' +
               '<div class="ph-controls">' +
                 '<button class="ph-btn" id="minimizeBtn" title="最小化">−</button>' +
                 '<button class="ph-btn close" id="closeBtn" title="关闭">×</button>' +
@@ -2955,15 +3055,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             '<div class="welcome" style="overflow-y:auto">' +
               '<h2>⚡ 时之写卡器</h2>' +
               '<p>基于SillyTavern原生机制与ST权重分层8体系，通过AI对话逐步引导你创建专业级世界模式角色卡。<br>和AI聊天就能生成符合ST规范的角色卡！</p>' +
+
+              // 当前角色卡状态
+              '<div style="background:' + (charName ? 'rgba(63,185,80,.08)' : 'rgba(248,81,73,.08)') + ';border:1px solid ' + (charName ? 'rgba(63,185,80,.3)' : 'rgba(248,81,73,.3)') + ';border-radius:8px;padding:10px 14px;margin:12px 0;text-align:left">' +
+                '<div style="font-size:.82em;color:' + (charName ? '#3fb950' : '#f85149') + ';font-weight:600;margin-bottom:4px">' +
+                  (charName ? '✅ 当前角色：' + escHtml(charName) : '⚠️ 未选择角色卡') +
+                '</div>' +
+                '<div style="font-size:.72em;color:#8b949e">' +
+                  (presetLoaded ? '✅ 预设已加载（' + preset.prompts.length + '条）' : '⚠️ 预设未加载') +
+                  ' · 聊天记录：' + chatMsgs.length + '条' +
+                '</div>' +
+              '</div>' +
+
+              // 如果有聊天记录，显示同步预览
+              (hasChat ? '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;margin:10px 0;max-height:200px;overflow-y:auto;text-align:left">' +
+                '<div style="font-size:.78em;color:#d2a8ff;font-weight:600;margin-bottom:6px">💬 已同步聊天记录（最近' + chatMsgs.length + '条）</div>' +
+                chatMsgs.slice(-5).map(function(m) {
+                  var isUser = m.role === 'user';
+                  return '<div style="margin-bottom:6px;padding:6px 8px;border-radius:6px;background:' + (isUser ? 'rgba(247,129,102,.08)' : 'rgba(210,168,255,.06)') + ';font-size:.72em">' +
+                    '<span style="color:' + (isUser ? '#f78166' : '#d2a8ff') + ';font-weight:600">' + (isUser ? '用户' : (m.name || 'AI')) + '：</span>' +
+                    '<span style="color:#8b949e">' + escHtml((m.content || '').substring(0, 120)) + (m.content && m.content.length > 120 ? '...' : '') + '</span>' +
+                  '</div>';
+                }).join('') +
+              '</div>' : '') +
+
               '<div class="welcome-features">' +
                 '<div class="wf-item"><div class="wf-icon">💬</div><div class="wf-title">对话式创作</div><div class="wf-desc">像聊天一样自然，AI按权重层级逐步引导</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">📊</div><div class="wf-title">权重可视化</div><div class="wf-desc">展示每个条目权重等级、触发逻辑、Token占用</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">✅</div><div class="wf-title">32项质检</div><div class="wf-desc">8基础+4高价值+6世界书+8世界书高级+6正则+3运行效果+6附加，专业达标</div></div>' +
                 '<div class="wf-item"><div class="wf-icon">🔧</div><div class="wf-title">AI优化</div><div class="wf-desc">质检未达标项一键AI优化，字段级对比</div></div>' +
               '</div>' +
-              '<button class="start-btn" id="startBtn">开始创作</button>' +
+              '<button class="start-btn" id="startBtn">' + (hasChat ? '继续创作' : '开始创作') + '</button>' +
               '<div class="welcome-actions">' +
                 '<button class="btn btn-ghost" id="importBtn">📥 导入现有卡</button>' +
+                (hasChat ? '<button class="btn btn-ghost" id="syncChatBtn">🔄 同步聊天记录</button>' : '') +
                 '<button class="btn btn-ghost" id="continueBtn" style="display:none">📂 继续上次</button>' +
               '</div>' +
               '<p style="font-size:.7em;color:#484f58;margin-top:16px">ST权重分层8体系：🏛️基础公理 → 🤝交互软规则 → 🔐核心铁则 → 🎯近场强约束 → ⚔️场景机制 → 👥实体交互 → 📖叙事背景 → 🔄动态适配</p>' +
@@ -2974,15 +3099,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         doc.getElementById('minimizeBtn').addEventListener('click', showFab);
         doc.getElementById('startBtn').addEventListener('click', function() {
           renderChatUI();
-          addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+          // 如果有聊天记录，同步到对话区
+          if (hasChat) {
+            chatMsgs.forEach(function(m) {
+              if (m.role === 'user') addUserMsg(m.content);
+              else addAssistantMsg(m.content);
+            });
+            addAssistantMsg('已同步当前角色卡「' + charName + '」的聊天记录（' + chatMsgs.length + '条）。\n\n你可以基于这些内容继续创作，或直接告诉我下一步想做什么。');
+          } else {
+            addAssistantMsg('你好！我是你的世界模式角色卡创作助手 🎭\n\n我会基于SillyTavern原生机制与ST权重分层8体系，通过6步引导你构建一个完整的世界。\n\n**引导流程**：定核心铁则 → 搭世界基底 → 做实体内容 → 加场景规则 → 补叙事背景 → 做动态适配\n\n在开始之前，有两个关键问题需要先明确：\n\n**1. 内容尺度**：你希望这个世界卡是什么尺度？\n   • 全年龄向：纯洁的青春、友情、冒险故事\n   • 暗黑向：残酷、深刻、成人向的剧情（非色情）\n   • NSFW（18禁）：成人内容、情欲描写\n\n**2. 核心方向**：你想做什么样的世界？\n   可以直接告诉我你的构想（如"修仙宗门""末世生存""日式校园恋爱"等），我会帮你从核心铁则开始逐步构建。\n\n请先告诉我尺度和方向，我们就可以开始创作了！');
+          }
         });
         doc.getElementById('importBtn').addEventListener('click', showImportModal);
+        var syncBtn = doc.getElementById('syncChatBtn');
+        if (syncBtn) syncBtn.addEventListener('click', function() { renderWelcome(); });
         var contBtn = doc.getElementById('continueBtn');
         if (contBtn && hasSavedData()) {
           contBtn.style.display = 'inline-block';
           contBtn.addEventListener('click', continueFromSave);
         }
         initDrag();
+      }
+
+      function escHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       }
 
       function renderChatUI() {
@@ -5406,6 +5547,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       // 点击按钮后创建 iframe 并展开渲染界面
       expandPanel();
       renderWelcome();
+
+      // 注册聊天事件实时监听：SillyTavern 有新消息时刷新欢迎页的聊天记录预览
+      registerChatListeners(function() {
+        // 只在欢迎页时自动刷新（避免打断正在进行的创作对话）
+        var startBtn = doc.getElementById('startBtn');
+        if (startBtn) {
+          // 欢迎页仍在，刷新聊天记录预览
+          renderWelcome();
+        }
+      });
 
     } catch(e) {
       console.error('时之写卡器 Error:', e);
