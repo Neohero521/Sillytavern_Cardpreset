@@ -267,6 +267,31 @@
     { key: 'creator_notes',             label: '创作者备注',     group: '其他',      type: 'textarea', required: false },
   ];
 
+  // ---------- 字段→预设模板名映射（参考参考预设脚本的Zt() presetRefs机制） ----------
+  var FIELD_PRESET_REFS = {
+    'basic':       ['📖 创作思路', '📐 创作原则-绝对零度', '📋 角色基础'],
+    'core':        ['📖 创作思路', '📐 创作原则-绝对零度'],
+    'opening':     ['📋 开场白'],
+    'highval':     ['📋 前端美化'],
+    'worldbook':   ['📋 世界观', '📋 标签规范', '📋 世界书评估'],
+    'axiom':       ['📋 世界观', '📋 标签规范'],
+    'scene':       ['📋 自由创作助手'],
+    'entity':      ['📋 角色基础', '📋 性格调色盘', '📋 NPC设计', '📋 标签规范'],
+    'story':       ['📋 自由创作助手', '📋 标签规范'],
+    'dynamic':     ['📋 前端美化'],
+    // MVU模块单独映射
+    'mvu_schema':  ['📋 MVU变量结构脚本'],
+    'mvu_init':    ['📋 MVU初始变量', '📋 MVU变量列表'],
+    'mvu_update':  ['📋 MVU变量更新规则', '📋 MVU变量输出格式'],
+    'mvu_bar':     ['📋 MVU前端状态栏', '📋 前端美化'],
+    'ejs':         ['📋 EJS', '📋 多阶段调色盘', '📋 EJS调色盘多阶段人设'],
+    'palette':     ['📋 性格调色盘', '📋 三面性', '📋 二次解释'],
+    'wardrobe':    ['📋 衣柜'],
+    'nsfw':        ['📋 NSFW调色盘', '📋 手枪卡'],
+    'npc':         ['📋 NPC设计'],
+    'summary':     ['📋 角色速览'],
+  };
+
   // ---------- 仪表盘10模块定义（双行5列布局） ----------
   var DASH_MODULES = [
     // 第一行：核心5模块
@@ -525,6 +550,23 @@
       + R + '-dash .cm-tpl-preview{font-size:10px;color:var(--cm-dim2);font-family:"SF Mono",Consolas,monospace;background:var(--cm-bg);padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       + R + '-dash .cm-empty{text-align:center;padding:20px 10px;color:var(--cm-dim2);font-size:12px}'
       + R + '-dash .cm-empty .cm-eicon{font-size:28px;margin-bottom:6px;opacity:.4}'
+      // --- 模板管理视图 ---
+      + R + '-dash .cm-tpl-section{margin-bottom:12px}'
+      + R + '-dash .cm-tpl-section h4{font-size:10px;color:var(--cm-dim);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}'
+      + R + '-dash .cm-tpl-list{display:flex;flex-direction:column;gap:4px}'
+      + R + '-dash .cm-tpl-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--cm-bg2);'
+      + ' border:1px solid var(--cm-border-soft);border-radius:6px;cursor:pointer;transition:all .15s}'
+      + R + '-dash .cm-tpl-item:hover{border-color:var(--cm-accent-border)}'
+      + R + '-dash .cm-tpl-item.active{border-color:var(--cm-green-border);background:var(--cm-green-soft)}'
+      + R + '-dash .cm-tpl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}'
+      + R + '-dash .cm-tpl-dot.on{background:var(--cm-green)}'
+      + R + '-dash .cm-tpl-dot.off{background:var(--cm-dim2)}'
+      + R + '-dash .cm-tpl-name{font-size:12px;color:var(--cm-text)}'
+      + R + '-dash .cm-tpl-actions{display:flex;gap:6px;margin:10px 0}'
+      + R + '-dash .cm-tpl-quickgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}'
+      + R + '-dash .cm-tpl-qbtn{padding:6px 8px;border:1px solid var(--cm-border);border-radius:6px;'
+      + ' background:var(--cm-bg2);color:var(--cm-text);cursor:pointer;font:inherit;font-size:11px;transition:all .15s}'
+      + R + '-dash .cm-tpl-qbtn:hover{border-color:var(--cm-accent);color:var(--cm-accent);background:var(--cm-accent-soft)}'
       // --- toast ---
       + R + '-toast{position:fixed;z-index:2147483648;left:50%;bottom:40px;transform:translateX(-50%);padding:8px 14px;background:#111827;color:#fff;'
       + ' border-radius:999px;font:inherit;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,.2);opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
@@ -1170,6 +1212,7 @@
       + '  <button class="cm-dtab" data-view="qc">质量检查</button>'
       + '  <button class="cm-dtab" data-view="worldbook">世界书概览</button>'
       + '  <button class="cm-dtab" data-view="tools">快捷工具</button>'
+      + '  <button class="cm-dtab" data-view="templates">模板管理</button>'
       + '</div>'
       + '<div class="cm-dbody" id="cm-dbody"></div>';
     doc.body.appendChild(dash);
@@ -1226,6 +1269,7 @@
     else if (v === 'qc') renderQCView();
     else if (v === 'worldbook') renderWBView();
     else if (v === 'tools') renderToolsView();
+    else if (v === 'templates') renderTemplatesView();
   }
 
   // --- 仪表盘视图：10个环形进度卡 + 详情 ---
@@ -1651,18 +1695,12 @@
           }
         } else if (q === 'dedup') {
           var n = dedupEntries();
-          if (ui.view === 'dashboard') renderDashboardView();
-          else if (ui.view === 'qc') renderQCView();
-          else if (ui.view === 'worldbook') renderWBView();
-          else renderToolsView();
+          refreshDash();
           updateCompletion();
           toast(n > 0 ? '去重完成：移除 ' + n + ' 条重复' : '没有发现重复条目');
         } else if (q === 'fixCfg') {
           var f = fixEntryConfigs();
-          if (ui.view === 'dashboard') renderDashboardView();
-          else if (ui.view === 'qc') renderQCView();
-          else if (ui.view === 'worldbook') renderWBView();
-          else renderToolsView();
+          refreshDash();
           updateCompletion();
           toast(f > 0 ? '配置修正：补全 ' + f + ' 条条目' : '所有条目配置已齐全');
         }
@@ -1716,6 +1754,124 @@
     });
     updateCompletion();
   }
+  // --- 模板管理视图：预设创作模板切换 ---
+  function renderTemplatesView() {
+    if (!ui) return;
+    var body = ui.dash.querySelector('#cm-dbody');
+    var templates = getPresetTemplates();
+    if (templates.length === 0) {
+      body.innerHTML = '<div class="cm-empty">未检测到预设创作模板<br>请确保已加载时之写卡预设</div>';
+      updateCompletion();
+      return;
+    }
+
+    var generalTpls = templates.filter(function(t) { return t.group === '创作'; });
+    var mvuTpls = templates.filter(function(t) { return t.group === 'MVU'; });
+
+    var html = '';
+
+    // 创作模板区
+    if (generalTpls.length > 0) {
+      html += '<div class="cm-tpl-section"><h4>创作模板</h4>';
+      html += '<div class="cm-tpl-list">';
+      generalTpls.forEach(function(t) {
+        html += '<div class="cm-tpl-item ' + (t.enabled ? 'active' : '') + '" data-tpl="' + esc(t.name) + '">'
+          + '<span class="cm-tpl-dot ' + (t.enabled ? 'on' : 'off') + '"></span>'
+          + '<span class="cm-tpl-name">' + esc(t.name) + '</span>'
+          + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    // MVU模板区
+    if (mvuTpls.length > 0) {
+      html += '<div class="cm-tpl-section"><h4>MVU/EJS模板</h4>';
+      html += '<div class="cm-tpl-list">';
+      mvuTpls.forEach(function(t) {
+        html += '<div class="cm-tpl-item ' + (t.enabled ? 'active' : '') + '" data-tpl="' + esc(t.name) + '">'
+          + '<span class="cm-tpl-dot ' + (t.enabled ? 'on' : 'off') + '"></span>'
+          + '<span class="cm-tpl-name">' + esc(t.name) + '</span>'
+          + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    // 快速操作
+    html += '<div class="cm-tpl-actions">';
+    html += '<button class="cm-btn" data-act="tpl-all">全部启用</button>';
+    html += '<button class="cm-btn" data-act="tpl-none">全部禁用</button>';
+    html += '<button class="cm-btn primary" data-act="tpl-apply">应用选中</button>';
+    html += '</div>';
+
+    // 字段快捷激活
+    html += '<div class="cm-tpl-section"><h4>按模块快捷激活</h4>';
+    html += '<div class="cm-tpl-quickgrid">';
+    var modules = [
+      {id:'basic', name:'角色基础'}, {id:'palette', name:'性格调色盘'},
+      {id:'worldbook', name:'世界观'}, {id:'opening', name:'开场白'},
+      {id:'npc', name:'NPC设计'}, {id:'summary', name:'角色速览'},
+      {id:'dynamic', name:'前端美化'}, {id:'mvu_schema', name:'MVU变量'},
+      {id:'mvu_bar', name:'状态栏'}, {id:'ejs', name:'EJS模板'},
+      {id:'nsfw', name:'NSFW'}, {id:'wardrobe', name:'衣柜'},
+    ];
+    modules.forEach(function(m) {
+      html += '<button class="cm-tpl-qbtn" data-mod="' + m.id + '">' + m.name + '</button>';
+    });
+    html += '</div></div>';
+
+    body.innerHTML = html;
+
+    // 绑定模板项点击（tpl-toggle）
+    body.querySelectorAll('.cm-tpl-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var tplName = el.getAttribute('data-tpl');
+        if (!tplName) return;
+        var tpls = getPresetTemplates();
+        var tpl = null;
+        for (var i = 0; i < tpls.length; i++) {
+          if (tpls[i].name === tplName) { tpl = tpls[i]; break; }
+        }
+        if (tpl) {
+          togglePresetPrompts([tplName], !tpl.enabled);
+          toast((tpl.enabled ? '已禁用' : '已启用') + '：' + tplName);
+          renderTemplatesView();
+        }
+      });
+    });
+
+    // 绑定快速操作按钮（tpl-all / tpl-none / tpl-apply）
+    body.querySelectorAll('[data-act]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        handleAction(el.getAttribute('data-act'));
+      });
+    });
+
+    // 绑定模块快捷激活按钮（tpl-quick）
+    body.querySelectorAll('.cm-tpl-qbtn').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var modId = el.getAttribute('data-mod');
+        var refs = FIELD_PRESET_REFS[modId];
+        if (refs) {
+          activateWriteMode(refs);
+          toast('已激活模块模板：' + modId);
+          renderTemplatesView();
+        }
+      });
+    });
+
+    updateCompletion();
+  }
+
+  // --- 统一刷新当前仪表盘视图 ---
+  function refreshDash() {
+    if (!ui) return;
+    if (ui.view === 'dashboard') renderDashboardView();
+    else if (ui.view === 'qc') renderQCView();
+    else if (ui.view === 'worldbook') renderWBView();
+    else if (ui.view === 'tools') renderToolsView();
+    else if (ui.view === 'templates') renderTemplatesView();
+  }
+
   function updateCompletion() {
     var c = calcOverallCompletion();
     if (ui) {
@@ -1748,23 +1904,39 @@
       case 'write':
         ensureCardDataShape();
         saveAll();
-        if (ui.view === 'dashboard') renderDashboardView();
-        else if (ui.view === 'qc') renderQCView();
-        else if (ui.view === 'worldbook') renderWBView();
-        else if (ui.view === 'tools') renderToolsView();
+        refreshDash();
         toast('仪表盘已刷新');
         break;
       case 'clear':
         if (confirm('确认清空全部写卡数据？此操作不可恢复。')) {
           cardData = blankCardData(); ensureCardDataShape();
           saveAll();
-          if (ui.view === 'dashboard') renderDashboardView();
-          else if (ui.view === 'qc') renderQCView();
-          else if (ui.view === 'worldbook') renderWBView();
-          else if (ui.view === 'tools') renderToolsView();
+          refreshDash();
           toast('已清空');
         }
         break;
+      case 'tpl-all': {
+        var tplsAll = getPresetTemplates();
+        var namesAll = tplsAll.map(function(t) { return t.name; });
+        togglePresetPrompts(namesAll, true);
+        toast('已启用所有创作模板');
+        refreshDash();
+        break;
+      }
+      case 'tpl-none': {
+        var tplsNone = getPresetTemplates();
+        var namesNone = tplsNone.map(function(t) { return t.name; });
+        togglePresetPrompts(namesNone, false);
+        toast('已禁用所有创作模板');
+        refreshDash();
+        break;
+      }
+      case 'tpl-apply': {
+        var activeTpls = getActiveTemplates();
+        toast('当前已启用 ' + activeTpls.length + ' 个创作模板');
+        refreshDash();
+        break;
+      }
     }
   }
 
@@ -2191,12 +2363,7 @@
     });
     ensureCardDataShape();
     saveAll();
-    if (ui) {
-      if (ui.view === 'dashboard') renderDashboardView();
-      else if (ui.view === 'qc') renderQCView();
-      else if (ui.view === 'worldbook') renderWBView();
-      else if (ui.view === 'tools') renderToolsView();
-    }
+    refreshDash();
     updateCompletion();
     return applied;
   }
@@ -2235,18 +2402,102 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else setTimeout(init, 0);
 
+  // === 预设配合系统 ===
+
+  // 安全调用ST原生API
+  function stAPI(fn, fallback) {
+    try {
+      var w = window.parent || window;
+      if (typeof w[fn] === 'function') return w[fn];
+    } catch(e) {}
+    return fallback || null;
+  }
+
+  // 读取当前预设
+  function readPreset() {
+    var getPreset = stAPI('getPreset');
+    if (!getPreset) return null;
+    try { return getPreset('in_use'); } catch(e) { return null; }
+  }
+
+  // 更新预设（切换prompt启用状态）
+  function togglePresetPrompts(promptNames, enable) {
+    var updatePresetWith = stAPI('updatePresetWith');
+    if (!updatePresetWith) { toast('当前环境不支持预设操作'); return false; }
+    try {
+      updatePresetWith('in_use', function(preset) {
+        var nameSet = {};
+        promptNames.forEach(function(n) { nameSet[n] = true; });
+        preset.prompts.forEach(function(p) {
+          if (nameSet[p.name]) p.enabled = enable;
+        });
+        return preset;
+      });
+      return true;
+    } catch(e) { console.warn('[CM-IDE] togglePresetPrompts failed:', e); return false; }
+  }
+
+  // 激活写卡模式：只启用指定prompt，禁用其他创作模板
+  function activateWriteMode(promptNames) {
+    var updatePresetWith = stAPI('updatePresetWith');
+    if (!updatePresetWith) { toast('当前环境不支持预设操作'); return false; }
+    try {
+      // 创作模板的identifier前缀
+      var TEMPLATE_PREFIXES = ['t_', 'gen_s', 'gen_e', 'mvu_s', 'mvu_e'];
+      var nameSet = {};
+      promptNames.forEach(function(n) { nameSet[n] = true; });
+
+      updatePresetWith('in_use', function(preset) {
+        preset.prompts.forEach(function(p) {
+          // 只切换创作模板类条目，不动规则类(p00-p17)和系统类
+          var isTemplate = false;
+          for (var i = 0; i < TEMPLATE_PREFIXES.length; i++) {
+            if (p.identifier && p.identifier.indexOf(TEMPLATE_PREFIXES[i]) === 0) {
+              isTemplate = true;
+              break;
+            }
+          }
+          if (isTemplate) {
+            p.enabled = !!nameSet[p.name];
+          }
+        });
+        return preset;
+      });
+      return true;
+    } catch(e) { console.warn('[CM-IDE] activateWriteMode failed:', e); return false; }
+  }
+
+  // 获取预设中的创作模板列表
+  function getPresetTemplates() {
+    var preset = readPreset();
+    if (!preset || !preset.prompts) return [];
+
+    var templates = [];
+    preset.prompts.forEach(function(p) {
+      if (p.identifier && p.identifier.indexOf('t_') === 0) {
+        templates.push({
+          identifier: p.identifier,
+          name: p.name,
+          enabled: p.enabled,
+          group: p.identifier.indexOf('t_mvu') === 0 || p.identifier.indexOf('t_ejs') === 0 ? 'MVU' : '创作'
+        });
+      }
+    });
+    return templates;
+  }
+
+  // 获取当前启用的模板列表
+  function getActiveTemplates() {
+    return getPresetTemplates().filter(function(t) { return t.enabled; });
+  }
+
   window.CM_IDE = {
     get state() { return state; },
     get cardData() { return cardData; },
     setCardField: function(k, v) {
       cardData[k] = v;
       ensureCardDataShape(); saveAll();
-      if (ui) {
-        if (ui.view === 'dashboard') renderDashboardView();
-        else if (ui.view === 'qc') renderQCView();
-        else if (ui.view === 'worldbook') renderWBView();
-        else if (ui.view === 'tools') renderToolsView();
-      }
+      refreshDash();
       updateCompletion();
     },
     getCardField: getFieldValue,
@@ -2256,22 +2507,12 @@
     scan: scanRecentMessages,
     reset: function () {
       cardData = blankCardData(); ensureCardDataShape(); saveAll();
-      if (ui) {
-        if (ui.view === 'dashboard') renderDashboardView();
-        else if (ui.view === 'qc') renderQCView();
-        else if (ui.view === 'worldbook') renderWBView();
-        else if (ui.view === 'tools') renderToolsView();
-      }
+      refreshDash();
       updateCompletion();
     },
     mergePatch: function (p) {
       mergeJsonIntoCardData(p); saveAll();
-      if (ui) {
-        if (ui.view === 'dashboard') renderDashboardView();
-        else if (ui.view === 'qc') renderQCView();
-        else if (ui.view === 'worldbook') renderWBView();
-        else if (ui.view === 'tools') renderToolsView();
-      }
+      refreshDash();
       updateCompletion();
     },
     calcModule: calcModulePct,
@@ -2285,5 +2526,11 @@
     buildOptimizeChecklist: buildOptimizeChecklist,
     buildExportableCard: buildExportableCard,
     getCompletion: calcOverallCompletion,
+    // ===== 预设配合系统 =====
+    readPreset: readPreset,
+    getPresetTemplates: getPresetTemplates,
+    activateWriteMode: activateWriteMode,
+    togglePresetPrompts: togglePresetPrompts,
+    fieldPresetRefs: FIELD_PRESET_REFS,
   };
 })();

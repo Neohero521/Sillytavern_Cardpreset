@@ -64,12 +64,12 @@
     },
     {
       "identifier": "1",
-      "name": "⚙️ 变量初始化（写卡器本地前端使用）",
+      "name": "⚙️ 变量初始化",
       "enabled": true,
       "injection_position": 4,
       "injection_depth": 0,
       "injection_order": 970,
-      "content": "【本地变量占位，写卡器前端将当前写卡进度/字段状态写入此处，AI 可以读取但不会直接使用】"
+      "content": "{{setvar::template_knowledge:: }}{{trim}}"
     },
     {
       "identifier": "2",
@@ -105,7 +105,7 @@
       "injection_position": 4,
       "injection_depth": 0,
       "injection_order": 930,
-      "content": "**JSON输出铁律**：\n1. 字段平铺在顶层，**严禁使用 \"character\" 包装对象**\n2. name字段是角色/世界的名称，例如\"星陨大陆\"，不要加任何前缀后缀\n3. 增/改：直接输出字段，如 {\"name\":\"新名称\",\"description\":\"新描述\"}\n4. 世界书条目：用顶层 \"entries\" 数组，通过 comment 智能匹配覆盖（相同comment=精确更新；相同<前缀>且同类型单条=自动更新；内容相似度>35%同前缀=智能更新）\n5. ⚠️【删除铁律 - 最高优先级 - 不遵守则你的修改无效】\n   删除条目**必须使用以下任一方式**，不写删除动作=只加不删=用户骂你！\n   · 方式A：顶层 \"_delete\" / \"delete\" / \"remove\" 数组，值为 [\"character_book.entries.<精确comment>\"] 或 [\"character_book.entries.<关键词包含匹配>\"]\n   · 方式B（⭐AI最容易写对⭐）：在 entries 数组内该条目加上 { \"_action\":\"delete\" , \"comment\":\"<要删的comment>\" }\n   · 方式C：\"deleted_entries\" 数组，值为 comment 列表\n6. ⚠️【修改铁律 - 不遵守则变成叠加】\n   修改条目=**先删旧条目+再加新条目**，或确保新条目comment与旧条目精确完全一致（字符级匹配，空格标点都要相同）\n   用户说\"修改/优化/重写XX条目\"时，绝不能只加一条新的！必须删除旧条目后再新增，或用完全相同comment覆盖\n7. 无变化：{\"_nochange\":true}\n8. JSON前1-2句说明，JSON后不解释\n9. **严禁输出完整 chara_card_v3 JSON**（除非用户说\"生成角色卡\"）\n\n**状态栏铁律**：\n- 每次回复必须包含 `<statusblock>` 状态栏\n- 使用 `<details open>` 标签，8大体系用 ✅⏳❌ 标识\n- 所有问题放在「🔍 需要您补充的信息」区块\n\n**Token预算铁律**：\n- 删除冗余、精炼表达、高信息密度\n- description≥400字, first_mes≥500字, system_prompt≤50字\n- post_history_instructions≤100字（核心铁则放此位置，权重最高）\n- 常驻条目总Token≤500，触发条目按需加载\n- 世界书条目≥250字/条, 总数≤30条"
+      "content": "**JSON输出铁律**：\n1. 字段平铺在顶层，**严禁使用 \"character\" 包装对象**\n2. name字段是角色/世界的名称，例如\"星陨大陆\"，不要加任何前缀后缀\n3. 增/改：直接输出字段，如 {\"name\":\"新名称\",\"description\":\"新描述\"}\n4. 世界书条目：用顶层 \"entries\" 数组，通过 comment 智能匹配覆盖（相同comment=精确更新；相同<前缀>且同类型单条=自动更新；内容相似度>35%同前缀=智能更新）\n5. ⚠️【删除铁律 - 最高优先级 - 不遵守则你的修改无效】\n   删除条目**必须使用以下任一方式**，不写删除动作=只加不删=用户骂你！\n   · 方式A：顶层 \"_delete\" / \"delete\" / \"remove\" 数组，值为 [\"character_book.entries.<精确comment>\"] 或 [\"character_book.entries.<关键词包含匹配>\"]\n   · 方式B（⭐AI最容易写对⭐）：在 entries 数组内该条目加上 { \"_action\":\"delete\" , \"comment\":\"<要删的comment>\" }\n   · 方式C：\"deleted_entries\" 数组，值为 comment 列表\n6. ⚠️【修改铁律 - 不遵守则变成叠加】\n   修改条目=**先删旧条目+再加新条目**，或确保新条目comment与旧条目精确完全一致（字符级匹配，空格标点都要相同）\n   用户说\"修改/优化/重写XX条目\"时，绝不能只加一条新的！必须删除旧条目后再新增，或用完全相同comment覆盖\n7. 无变化：{\"_nochange\":true}\n8. JSON前1-2句说明，JSON后不解释\n9. **严禁输出完整 chara_card_v3 JSON**（除非用户说\"生成角色卡\"）\n\n**状态栏铁律**：\n- 每次回复必须包含 `<statusblock>` 状态栏\n- 使用 `<details open>` 标签，8大体系用 ✅⏳❌ 标识\n- 所有问题放在「🔍 需要您补充的信息」区块\n\n**Token预算铁律**：\n- 删除冗余、精炼表达、高信息密度\n- description≥400字, first_mes≥500字, system_prompt≤50字\n- post_history_instructions≤100字（核心铁则放此位置，权重最高）\n- 常驻条目总Token≤500，触发条目按需加载\n- 世界书条目≥250字/条, 总数≤30条\n\n**当前启用的创作模板**：{{getvar::template_knowledge}}"
     },
     {
       "identifier": "p02_",
@@ -268,6 +268,294 @@
       "injection_depth": 0,
       "injection_order": 1110,
       "content": "  var MODULE_SYSTEM = {\n    permanent: [\n      { key: 'axiom', name: '基础公理', icon: '🏛️', weight: 35, position: 0, order: 250 },\n      { key: 'soft_rules', name: '交互软规则', icon: '🤝', weight: 30, position: 1, order: 150 },\n      { key: 'core_rules', name: '核心铁则', icon: '🔐', weight: 35, order: 100 },\n    ],\n    trigger: [\n      { key: 'near_constraint', name: '近场强约束', icon: '🎯', weight: 25, position: 2, depth: 2 },\n      { key: 'scene_mechanics', name: '场景机制', icon: '⚔️', weight: 25, position: 1, depth: 3 },\n      { key: 'entity_interact', name: '实体交互', icon: '👥', weight: 25, position: 1, depth: 3 },\n      { key: 'narrative_bg', name: '叙事背景', icon: '📖', weight: 25, position: 4, depth: 5 }\n    ],\n    dynamic: [\n      { key: 'dynamic_adapt', name: '动态适配', icon: '🔄', weight: 100, position: 1, depth: 4 }\n    ],\n    variable: [\n      { key: 'init_var', name: '初始变量', icon: '📊', weight: 100, position: 0, order: 245 },\n      { key: 'var_update_rule', name: '变量更新规则', icon: '📝', weight: 100, position: 1, order: 145 }\n    ]\n  };"
+    },
+    {
+      "identifier": "wi_s",
+      "name": "【worldinfo】",
+      "enabled": true,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 500,
+      "content": "<worldinfo>\n以下是世界书和角色卡的基础信息区域，包含角色描述、情景、对话示例和聊天记录。"
+    },
+    {
+      "identifier": "wi_e",
+      "name": "【/worldinfo】",
+      "enabled": true,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 300,
+      "content": "</worldinfo>"
+    },
+    {
+      "identifier": "gen_s",
+      "name": "【一般条目】",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 299,
+      "content": "{{trim}}"
+    },
+    {
+      "identifier": "gen_e",
+      "name": "【/一般条目】",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 200,
+      "content": "{{trim}}"
+    },
+    {
+      "identifier": "mvu_s",
+      "name": "【MVU条目】",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 199,
+      "content": "{{trim}}"
+    },
+    {
+      "identifier": "mvu_e",
+      "name": "【/MVU条目】",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 150,
+      "content": "{{trim}}"
+    },
+    {
+      "identifier": "t_creative",
+      "name": "📖 创作思路",
+      "enabled": true,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 915,
+      "content": "{{addvar::template_knowledge::\\n[创作思路] 已启用}}{{trim}}\n<creative_principles>\n角色卡制作核心原则\n\n1. 性格调色盘：用底色、主色调、点缀和衍生构建角色的复杂性格，而非贴标签\n2. 衍生机制：每个性格在具体场景中展开为行为，衍生之间可以跨性格关联产生化学反应\n3. 手写优先：衍生和台词必须由创作者自己写，AI无法做到把毫无逻辑的两个性格组合在一起\n4. 三面性（可选）：当角色在不同场景下有根本性的行为切换时，用三面性描述不同的运作模式\n5. 二次解释：作者对角色的终极注释，防止AI用自己的理解补全角色\n6. NSFW调色盘：从\"为什么做\"而不是\"做什么\"的角度描写亲密行为\n7. 用行为展现性格，而非定义性格\n8. 提供具体的语料示例，而非描述语气\n9. 避免模糊词、比喻词、微表情等八股描写\n10. 外貌特征差异化：只写偏离AI数据库默认认知的特征\n11. 保持一致性，所有设定要相互支撑\n12. 去标签化：越是AI直出的角色，性格调色盘的修正效果越明显\n\n人设制作流程：\n世界观 → 角色基础 → 性格调色盘 → 三面性（可选） → 二次解释 → 衣柜 → NSFW调色盘（可选） → NPC（可选） → 角色速览 → 开场白\n</creative_principles>"
+    },
+    {
+      "identifier": "t_zero",
+      "name": "📐 创作原则-绝对零度",
+      "enabled": true,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 914,
+      "content": "{{addvar::template_knowledge::\\n[创作原则-绝对零度] 已启用}}{{trim}}\n<writing_principles>\n八股是指陈词滥调、机械化的描写方式：\n- 模糊词：似乎、几乎、仿佛、如同、宛如\n- 劣质比喻：像小兽、像小兔子、投石入湖、心湖泛起涟漪\n- 微表情：嘴角上扬、眼里闪过光芒、指尖泛白\n- 语气描写：带着xx的口吻、用xx的语气\n- 极端情绪词：陷入极大的恐惧、极度羞耻\n- 否定转折句：不是...而是...\n- 过度心理描写：大段内心活动\n\n创作必须遵守的原则：\n1. 绝对零度：保持客观冷静的叙述视角，不带主观判断，不添加个人情感色彩\n2. 白描手法：直接描述事实，不添加修饰和渲染，用最简单的语言呈现\n3. 不使用形容词：简单干净，用名词和动词直接呈现，避免一切装饰性描述\n4. 不使用代词和意象词：避免歧义，使用具体明确的本意，不用抽象概念替代具体事物\n5. 用行为替代描述：展现而非告知，写角色做了什么，而非角色是什么样的人\n6. 用语料展现性格：让角色通过对话体现特点，不描述语气，让对话本身说话\n</writing_principles>"
+    },
+    {
+      "identifier": "t_tags",
+      "name": "📋 标签规范",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 913,
+      "content": "{{addvar::template_knowledge::\\n[标签规范] 已启用}}{{trim}}\n<template_tag_spec>\n世界书条目标签包裹规范\n\n核心规则：\n- 每个世界书条目的内容必须用 <名称_idN> 标签包裹\n- N 是递增的数字ID，按以下规则分配\n- 同一角色的所有条目共用同一个标签ID\n\nID分配优先级：\n1. 世界观条目（id1~idX）\n2. 角色速览（id0，固定）\n3. 各角色条目（按创建顺序分配，同角色共用ID）\n4. NPC条目（最后分配）\n\n示例：\n- <世界观_id1> — 世界总纲\n- <角色速览_id0> — 角色总览\n- <秋青子_id2> — 秋青子基础信息\n- <秋青子_id2> — 秋青子调色盘人设（同角色，同ID）\n- <NPC名_id3> — NPC条目\n\n写入格式：\n<角色名_idN>\n（条目正文内容）\n</角色名_idN>\n</template_tag_spec>"
+    },
+    {
+      "identifier": "t_world",
+      "name": "📋 世界观",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 290,
+      "content": "{{addvar::template_knowledge::\\n[世界观创作指南] 已启用}}{{trim}}\n<template_worldview>\n世界观创作指南\n\n开局引导：先确认世界类型\nA. 真实背景 — 模型已知的世界，只需补充额外设定\nB. 小世界 — 模型有基础认知但需自定义\nC. 大世界 — 完全原创，需条目拆分（蓝灯总纲+绿灯触发详情）\n\n路径A（真实背景）：\n- 只写AI不知道的自定义设定（学校名、虚构地点、特殊规则）\n- 不写\"东京是日本首都\"这种AI已知的信息\n\n路径B（小世界）：\n- 告诉AI你的魔法体系、种族、社会结构\n- 每次迭代：用户说加什么就加什么，输出完整版本\n\n路径C（大世界）：\n- 方案一：蓝灯常驻（总纲+区域速览）+ 绿灯触发（势力/NPC详情）\n- 方案二：EJS动态控制器+MVU变量联动（需先完成MVU变量结构）\n\n输出方式：\n- 将世界观内容作为 description 字段或 <基础公理>/<世界元数据> 条目输出\n- JSON格式：{\"description\":\"世界观描述...\",\"entries\":[{\"comment\":\"<基础公理>世界设定\",\"content\":\"...\",\"keys\":[\"关键词\"],\"constant\":true,\"selective\":false,\"insertion_order\":250,\"extensions\":{\"position\":0,\"depth\":0,\"prevent_recursion\":true}}]}\n\n写作原则：绝对零度+白描+用户主导（不擅自扩展）\n</template_worldview>"
+    },
+    {
+      "identifier": "t_basic",
+      "name": "📋 角色基础",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 289,
+      "content": "{{addvar::template_knowledge::\\n[角色基础创作指南] 已启用}}{{trim}}\n<template_basic>\n角色基础信息模板\n\n结构：基本信息、外貌特征、背景设定、关系设定\n注意：性格部分不在这里写，使用\"📋 性格调色盘\"\n\n外貌特征差异化原则：\n- 只写偏离AI数据库默认认知的特征\n- 中国人黑发不用写，白头发要写\n- \"精致的脸蛋、白皙的皮肤\"是废话，放在谁身上都行\n- \"蓝头发、马尾辫、琥珀瞳、校服\"才是有效特征\n- 判断标准：遮住名字，靠特征能认出角色就对了\n\n不写什么：\n1. 数据库默认值（该种族/国籍/年龄的标准外貌）\n2. 万能美人描写（精致、白皙、好看等）\n3. 过度细节（每个五官都写一遍）\n\n输出方式：\n- 作为 <重要角色>条目输出到entries\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名\",\"content\":\"角色档案...\",\"keys\":[\"角色名\",\"昵称\"],\"constant\":false,\"selective\":true,\"insertion_order\":110,\"extensions\":{\"position\":1,\"depth\":3,\"prevent_recursion\":true}}]}\n</template_basic>"
+    },
+    {
+      "identifier": "t_palette",
+      "name": "📋 性格调色盘",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 288,
+      "content": "{{addvar::template_knowledge::\\n[性格调色盘创作指南] 已启用}}{{trim}}\n<template_palette>\n性格调色盘创作指南\n\n核心理念：人的性格就像调色盘，不是单一标签，而是多种颜色混合。\n通过\"衍生\"机制，用极少token实现深度去标签化。\n\n调色盘结构：\n- 底色：最深层的性格基调，始终存在但不一定最明显\n- 主色调：日常最突出的性格（1-2个），别人的第一印象\n- 点缀：特定条件下才出现的隐藏性格\n- 衍生：每个性格在具体场景中的表现（核心！）\n\n为什么不能让AI写衍生：\n- AI写的衍生逃不出资料库与逻辑的关联性\n- 只有人类才能把毫无逻辑的性格组合在一起\n- 手写的衍生让角色产生AI无法预料的行为（\"活人感\"）\n- 必须引导用户自己写，而不是替用户写\n\n引导流程：\n1. 确定底色、主色调、点缀\n2. 逐个引导写衍生（每个性格2-3个衍生）\n3. 检查覆盖度和关联性\n\n输出格式：\n- 作为 <重要角色>条目的content部分输出\n- 或单独作为世界书条目输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-调色盘\",\"content\":\"性格调色盘：...\\n主色调：...\\n底色：...\\n性格点缀：...\\n\\n[主色调]衍生一：...\",\"keys\":[\"角色名\",\"调色盘\"]}]}\n</template_palette>"
+    },
+    {
+      "identifier": "t_triple",
+      "name": "📋 三面性",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 287,
+      "content": "{{addvar::template_knowledge::\\n[三面性创作指南] 已启用}}{{trim}}\n<template_triple>\n三面性创作指南\n\n当角色在不同场景下有根本性的行为切换时使用。\n不是\"多面性格\"，而是同一个人在不同压力环境下的\"档位切换\"。\n\n每张面包含5个部件：\n1. 触发条件：什么场景/压力下切换到这面\n2. 能量状态：这面的精神状态和行为驱动力\n3. 语料：这面说话的典型台词（必须手写）\n4. 身体行为模式：这面的肢体语言和习惯动作\n5. 功能：这面在故事中承担什么叙事功能\n\n过渡：面与面之间的切换过程（渐变还是突变？有什么征兆？）\n渗透：一面在另一面中的影子（不是完全切换，有渗透）\n\n输出方式：\n- 作为 <重要角色>条目的补充内容输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-三面性\",\"content\":\"三面性设定...\",\"keys\":[\"角色名\",\"三面性\"]}]}\n</template_triple>"
+    },
+    {
+      "identifier": "t_explain",
+      "name": "📋 二次解释",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 286,
+      "content": "{{addvar::template_knowledge::\\n[二次解释创作指南] 已启用}}{{trim}}\n<template_explain>\n二次解释创作指南\n\n作者对角色的终极注释，防止AI用自己的理解补全角色。\n确保角色是创作者想象中的样子，而不是AI推理出来的样子。\n\n内容要点：\n- 指出角色最核心的特质（一句话概括）\n- 纠正AI可能产生的误解\n- 强调角色不会做的事\n- 强调角色独特的行为逻辑\n- 可以包含创作意图（为什么这样设计）\n\n输出方式：\n- 作为 <重要角色>条目的补充内容输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-二次解释\",\"content\":\"二次解释：...\",\"keys\":[\"角色名\",\"二次解释\"]}]}\n</template_explain>"
+    },
+    {
+      "identifier": "t_wardrobe",
+      "name": "📋 衣柜",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 285,
+      "content": "{{addvar::template_knowledge::\\n[衣柜创作指南] 已启用}}{{trim}}\n<template_wardrobe>\n衣柜创作指南\n\n只列拥有的衣物，不规定穿着顺序。\n让AI根据场景自行搭配，而非机械换装。\n\n衣柜分类：\n- 日常穿搭\n- 学校/工作着装\n- 特殊场合\n- 私下/居家\n- 季节性\n\n每件衣物只写特征，不写美感描述。\n遵守绝对零度和白描原则。\n\n输出方式：\n- 作为 <重要角色>条目的补充内容输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-衣柜\",\"content\":\"衣柜：\\n日常：...\\n学校：...\",\"keys\":[\"角色名\",\"衣柜\"]}]}\n</template_wardrobe>"
+    },
+    {
+      "identifier": "t_nsfw",
+      "name": "📋 NSFW调色盘",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 284,
+      "content": "{{addvar::template_knowledge::\\n[NSFW调色盘创作指南] 已启用}}{{trim}}\n<template_nsfw>\nNSFW调色盘创作指南\n\n从\"为什么做\"而不是\"做什么\"的角度描写亲密行为。\n让亲密成为性格的延续，而非独立的色情场景。\n\n结构与性格调色盘一致：\n- 底色：最深层的亲密需求/恐惧\n- 主色调：最常见的亲密表现\n- 点缀：特定条件下才出现的亲密行为\n- 衍生：每个亲密性格在具体场景中的表现\n\n核心原则：\n- 只在用户明确要求NSFW时启用\n- 从角色的性格推导亲密行为逻辑\n- 写\"为什么想要/抗拒\"，不写\"做什么\"\n- 衍生必须手写\n\n输出方式：\n- 作为 <重要角色>条目的补充内容输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-NSFW调色盘\",\"content\":\"NSFW调色盘：...\",\"keys\":[\"角色名\",\"NSFW\"]}]}\n</template_nsfw>"
+    },
+    {
+      "identifier": "t_pistol",
+      "name": "📋 手枪卡",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 283,
+      "content": "{{addvar::template_knowledge::\\n[手枪卡创作指南] 已启用}}{{trim}}\n<template_pistol>\nXP色情卡创作指南\n\n无视绝对零度和白描原则，专为色情场景设计。\n四阶段引导：说出欲望 → 锁定XP → 补充细节 → 创作\n\n规则：\n- 强制用直白词汇，禁八股色情\n- 从用户的XP出发，不是AI的XP库\n- 每个XP都要有触发条件和表现形式\n- 只在用户明确要求时启用\n\n输出方式：\n- 作为 <重要角色>条目的补充内容输出\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>角色名-手枪卡\",\"content\":\"XP卡：...\",\"keys\":[\"角色名\",\"XP\"]}]}\n</template_pistol>"
+    },
+    {
+      "identifier": "t_npc",
+      "name": "📋 NPC设计",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 282,
+      "content": "{{addvar::template_knowledge::\\n[NPC设计指南] 已启用}}{{trim}}\n<template_npc>\nNPC快速设计模板\n\nNPC是功能性角色，极简化设计。\n只写与主角互动相关的部分，不写完整人生故事。\n\nNPC结构：\n- 姓名/称呼\n- 功能定位（商店老板/敌人/导师/路人）\n- 一句话性格\n- 与主角的关系/互动方式\n- 出现场景\n\n输出方式：\n- 作为 <重要角色>条目输出到entries\n- JSON格式：{\"entries\":[{\"comment\":\"<重要角色>NPC名\",\"content\":\"NPC档案...\",\"keys\":[\"NPC名\"],\"constant\":false,\"selective\":true,\"insertion_order\":110,\"extensions\":{\"position\":1,\"depth\":3,\"prevent_recursion\":true}}]}\n</template_npc>"
+    },
+    {
+      "identifier": "t_summary",
+      "name": "📋 角色速览",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 281,
+      "content": "{{addvar::template_knowledge::\\n[角色速览创作指南] 已启用}}{{trim}}\n<template_summary>\n角色总览整理指南\n\n当有多个角色时，创建一个总览条目，帮助AI快速了解角色关系。\n\n内容结构：\n- 角色列表（姓名+一句话定位）\n- 角色关系图（谁认识谁、什么关系）\n- 当前状态总结\n- 主要矛盾/张力点\n\n输出方式：\n- 作为 <角色速览>条目输出到entries\n- JSON格式：{\"entries\":[{\"comment\":\"<角色速览>总览\",\"content\":\"角色速览...\",\"keys\":[\"角色速览\",\"角色总览\"],\"constant\":true,\"selective\":false,\"insertion_order\":250,\"extensions\":{\"position\":0,\"depth\":0,\"prevent_recursion\":true}}]}\n</template_summary>"
+    },
+    {
+      "identifier": "t_free",
+      "name": "📋 自由创作助手",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 280,
+      "content": "{{addvar::template_knowledge::\\n[自由创作助手] 已启用}}{{trim}}\n<template_free>\n通用自由创作工具\n\n当用户的需求不属于标准流程时使用。\n可以创建：场景、事件、物品、规则、势力等任意内容。\n\n使用方式：\n- 用户描述需求\n- 确定内容类型和对应的前缀\n- 引导用户补充细节\n- 按规范输出JSON\n\n输出方式：\n- 根据内容类型选择合适的前缀\n- JSON格式：{\"entries\":[{\"comment\":\"<场景机制>名称\",\"content\":\"...\",\"keys\":[\"关键词\"]}]}\n</template_free>"
+    },
+    {
+      "identifier": "t_opening",
+      "name": "📋 开场白",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 279,
+      "content": "{{addvar::template_knowledge::\\n[开场白创作指南] 已启用}}{{trim}}\n<template_opening>\n开场白创作指南\n\n开场白(first_mes)是用户进入角色卡后看到的第一段文字。\n信息完整度≥80%或用户明确要求时才能生成。\n\n结构（500-800字）：\n1. 场景描写（时间、地点、氛围）\n2. 主角出场（动作驱动，不是描述）\n3. 冲突/悬念（引入故事张力）\n4. 自然对话（角色语气，不用描写语气）\n5. 结尾留钩（给用户回应的空间）\n\n禁止：\n- 占位符（如{{user}}以外的变量）\n- 过度描写（遵守绝对零度）\n- 信息倾倒（不要在开场白里塞所有设定）\n\n输出方式：\n- 作为first_mes字段输出\n- JSON格式：{\"first_mes\":\"开场白内容...\"}\n- 也可以同时输出alternate_greetings（备用开场白）\n- JSON格式：{\"first_mes\":\"主开场白...\",\"alternate_greetings\":[\"备用1\",\"备用2\"]}\n</template_opening>"
+    },
+    {
+      "identifier": "t_frontend",
+      "name": "📋 前端美化",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 278,
+      "content": "{{addvar::template_knowledge::\\n[前端美化创作指南] 已启用}}{{trim}}\n<template_frontend>\n前端美化系统\n\n两种模式：\nA. 正文美化：用正则脚本对AI回复做格式化（加粗/颜色/折叠等）\nB. 结构化美化：用HTML+CSS+JS创建状态栏/属性面板/关系图等\n\n模式A（正则脚本）：\n- 输出regex_scripts字段\n- JSON格式：{\"regex_scripts\":[{\"scriptName\":\"名称\",\"findRegex\":\"/pattern/g\",\"replaceString\":\"替换\",\"trimStrings\":[],\"placement\":[2],\"disabled\":false,\"markdownOnly\":true,\"promptOnly\":false,\"runOnEdit\":true,\"substituteRegex\":0}]}\n\n模式B（HTML状态栏）：\n- 输出<状态栏>条目或regex_scripts\n- HTML必须完整：<!doctype html>→<html>→<head><style>→<body>+<script type=\"module\">\n- 用getAllVariables()读变量，await waitGlobalInitialized('Mvu')等待初始化\n- 用CSS Grid布局，分类标题+indent缩进\n- 配色用CSS变量，深色毛玻璃或浅色舒适主题\n- 绑定VARIABLE_INITIALIZED和VARIABLE_UPDATE_ENDED两个事件\n- 递归渲染renderTree(obj, level)，跳过_/$开头变量\n- 数值用进度条，布尔用✓/✕，数组显示[a,b,c]\n\n输出方式：\n- 正则脚本：regex_scripts字段\n- HTML状态栏：regex_scripts中的替换内容，或<状态栏>条目\n</template_frontend>"
+    },
+    {
+      "identifier": "t_wb_eval",
+      "name": "📋 世界书评估",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 277,
+      "content": "{{addvar::template_knowledge::\\n[世界书评估指南] 已启用}}{{trim}}\n<template_wb_eval>\n世界书全面评估流程\n\n当用户要求评估/检查世界书时，按以下维度检查：\n\n1. 条目数量：12-30条为宜\n2. 触发词覆盖：≥50%条目有keys\n3. 内容充实度：≥50%条目content≥250字\n4. 命名规范：≥50%条目使用<前缀>格式\n5. 递归安全：实体类条目prevent_recursion=true\n6. 冷却防抖：场景类条目cooldown≥3\n7. Token预算：常驻条目总Token≤500\n8. 分组互斥：叙事类条目有group设置\n9. 自包含性：无\"如上所述/见上文\"等依赖词\n10. 触发词精准：无\"的/是/在\"等泛用词\n\n输出方式：\n- 输出评估报告（自然语言+状态栏）\n- 发现问题时输出修复JSON\n</template_wb_eval>"
+    },
+    {
+      "identifier": "t_mvu_schema",
+      "name": "📋 MVU变量结构脚本",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 195,
+      "content": "{{addvar::template_knowledge::\\n[MVU变量结构脚本] 已启用}}{{trim}}\n<template_mvu_schema>\nMVU变量结构脚本创作指导\n\n使用zod 4定义变量结构并注册。\n- 数值型：z.coerce.number().prefault(默认值).transform(v => _.clamp(v, min, max))\n- 布尔型：z.boolean().prefault(默认值)\n- 枚举型：z.enum([\"选项1\",\"选项2\"]).prefault(\"默认选项\")\n- 字符串型：z.string().prefault(默认值)\n\n规则：\n- 必须用zod v4\n- 只导入registerMvuSchema\n- 变量名_开头=AI不可更新（只读），$开头=AI不可见\n- 数值型必须用_.clamp限制范围\n\n输出方式：\n- 作为regex_scripts或tavern_helper.scripts输出\n- JSON格式：{\"regex_scripts\":[...]}或直接在entries中输出脚本条目\n</template_mvu_schema>"
+    },
+    {
+      "identifier": "t_mvu_init",
+      "name": "📋 MVU初始变量",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 194,
+      "content": "{{addvar::template_knowledge::\\n[MVU初始变量] 已启用}}{{trim}}\n<template_mvu_init>\nMVU初始变量文件创作指导\n\n[InitVar]初始变量条目，YAML格式，enabled必须=false（MVU只读禁用条目进行初始化）。\n\n三种基本类型：\n- number: 数值（好感度/血量/金钱等）\n- string: 字符串（当前地点/时间等）\n- boolean: 布尔值（某事件是否发生）\n\n结构示例：\n世界:\n  当前时间: \"第一天\"\n  当前地点: \"起点\"\n  _当前回合: 0\n角色名:\n  好感度: 0\n  状态: \"正常\"\n\n规则：\n- 缩进表示层级（2空格）\n- _开头变量AI不可更新\n- $开头变量AI不可见\n\n输出方式：\n- 作为[InitVar]初始变量条目输出\n- JSON格式：{\"entries\":[{\"comment\":\"[InitVar]初始变量\",\"content\":\"世界:\\n  当前时间: \\\"第一天\\\"\",\"keys\":[],\"constant\":true,\"selective\":false,\"enabled\":false,\"insertion_order\":200,\"extensions\":{\"position\":4,\"depth\":4}}]}\n</template_mvu_init>"
+    },
+    {
+      "identifier": "t_mvu_update",
+      "name": "📋 MVU变量更新规则",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 193,
+      "content": "{{addvar::template_knowledge::\\n[MVU变量更新规则] 已启用}}{{trim}}\n<template_mvu_update>\n变量更新规则文件指导\n\nYAML格式，每变量含type/range/check三字段。\n\n示例：\n好感度:\n  type: number\n  range: [0, 100]\n  check: |\n    单次增幅上限+1\n    同日累计上限+5\n    ≥80时进入深爱模式\n\n当前地点:\n  type: string\n  range: [\"地点A\", \"地点B\", \"地点C\"]\n\n规则：\n- 优先使用delta操作（增量），避免replace（全量替换）\n- 好感度必须有增幅上限\n- 数值型必须有range限制\n\n输出方式：\n- 作为[mvu_update]变量更新规则条目输出\n- JSON格式：{\"entries\":[{\"comment\":\"[mvu_update]变量更新规则\",\"content\":\"好感度:\\n  type: number\\n  range: [0, 100]\",\"keys\":[],\"constant\":true,\"selective\":false,\"insertion_order\":200,\"extensions\":{\"position\":4,\"depth\":4}}]}\n</template_mvu_update>"
+    },
+    {
+      "identifier": "t_mvu_list",
+      "name": "📋 MVU变量列表",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 192,
+      "content": "{{addvar::template_knowledge::\\n[MVU变量列表] 已启用}}{{trim}}\n<template_mvu_list>\n变量列表固定格式\n\ncontent必须包含以下宏，AI通过此宏读取当前变量值：\n{{format_message_variable::stat_data}}\n\n完整格式：\n---\n<status_current_variable>\n{{format_message_variable::stat_data}}\n</status_current_variable>\n\n规则：\n- constant=true, position=4, depth=0\n- 此条目AI只读，不可修改\n\n输出方式：\n- 作为\"变量列表\"条目输出\n- JSON格式：{\"entries\":[{\"comment\":\"变量列表\",\"content\":\"---\\n<status_current_variable>\\n{{format_message_variable::stat_data}}\\n</status_current_variable>\",\"keys\":[],\"constant\":true,\"selective\":false,\"insertion_order\":200,\"extensions\":{\"position\":4,\"depth\":0}}]}\n</template_mvu_list>"
+    },
+    {
+      "identifier": "t_mvu_output",
+      "name": "📋 MVU变量输出格式",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 191,
+      "content": "{{addvar::template_knowledge::\\n[MVU变量输出格式] 已启用}}{{trim}}\n<template_mvu_output>\n变量输出格式指导\n\n采用JSON Patch (RFC 6902)标准，在<UpdateVariable>段输出。\n\n格式：\n<UpdateVariable>\n```json\n[\n  {\"op\":\"replace\",\"path\":\"/世界/当前时间\",\"value\":\"第二天\"},\n  {\"op\":\"delta\",\"path\":\"/角色名/好感度\",\"value\":1}\n]\n```\n</UpdateVariable>\n\n操作类型：\n- replace: 替换值\n- delta: 数值增量\n- insert: 数组插入\n- remove: 删除\n- move: 移动\n\n规则：\n- path不带stat_data前缀（相对路径）\n- 读取时用stat_data.路径，更新时用相对路径\n- 好感度增幅受更新规则check限制\n- 每次回复必须包含<UpdateVariable>段（除非无变量变化）\n\n输出方式：\n- 此格式直接在AI回复中使用，不需要写入条目\n- 但需要输出变量输出格式条目作为AI的参考\n- JSON格式：{\"entries\":[{\"comment\":\"[mvu_update]变量输出格式\",\"content\":\"<UpdateVariable>\\n```json\\n[{\\\"op\\\":\\\"replace\\\",...}]\\n```\\n</UpdateVariable>\",\"keys\":[],\"constant\":true,\"selective\":false,\"insertion_order\":200,\"extensions\":{\"position\":4,\"depth\":4}}]}\n</template_mvu_output>"
+    },
+    {
+      "identifier": "t_mvu_bar",
+      "name": "📋 MVU前端状态栏",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 190,
+      "content": "{{addvar::template_knowledge::\\n[MVU前端状态栏] 已启用}}{{trim}}\n<template_mvu_bar>\nHTML状态栏生成指导\n\n生成一个正则脚本，将<StatusPlaceHolderImpl/>替换为状态栏HTML。\n\n配置固定：\n- findRegex: /<StatusPlaceHolderImpl\\/>/g\n- placement: [2]（仅AI回复）\n- markdownOnly: true, promptOnly: false, runOnEdit: true, substituteRegex: 0\n\nHTML要求：\n- 完整结构：<!doctype html>→<html>→<head><style>→<body>+<script type=\"module\">\n- 用getAllVariables()读变量（不用Mvu.getVar，有时序问题）\n- await waitGlobalInitialized('Mvu')后绑定事件\n- $(errorCatched(init))包裹初始化\n- 递归渲染renderTree(obj, level)，跳过_/$变量\n- CSS Grid布局：repeat(auto-fit, minmax(160px, 1fr))\n- 分类标题+indent缩进（8/20/32/44px）\n- 数值用进度条，布尔用✓/✕，数组显示[a,b,c]\n- 深色毛玻璃主题：--card-bg:rgba(30,35,45,0.82);backdrop-filter:blur(6px)\n- loading呼吸动画+flash更新动画\n\n输出方式：\n- 作为regex_scripts输出\n- JSON格式：{\"regex_scripts\":[{\"scriptName\":\"[美化]MVU状态栏\",\"findRegex\":\"/<StatusPlaceHolderImpl\\\\/>/g\",\"replaceString\":\"<!doctype html>...\",\"trimStrings\":[],\"placement\":[2],\"disabled\":false,\"markdownOnly\":true,\"promptOnly\":false,\"runOnEdit\":true,\"substituteRegex\":0}]}\n</template_mvu_bar>"
+    },
+    {
+      "identifier": "t_ejs",
+      "name": "📋 EJS",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 189,
+      "content": "{{addvar::template_knowledge::\\n[EJS创作指南] 已启用}}{{trim}}\n<template_ejs>\nEJS创作指导\n\nEJS用于根据MVU变量值动态切换内容。\n用getvar(\"stat_data.角色.好感度\")读取变量值，按阈值分段。\n\n分段建议：\n- ≥80: 深爱模式\n- ≥50: 好感模式\n- ≥20: 熟识模式\n- <20: 陌生模式\n\n示例：\n<% if (typeof getvar(\"stat_data.白娅.好感度\") !== \"undefined\" && getvar(\"stat_data.白娅.好感度\") >= 50) { %>\n温柔依赖模式\n<% } else { %>\n礼貌客气模式\n<% } %>\n\n注意：第一个if必须用typeof检查变量是否初始化，避免模板报错。\n\n输出方式：\n- 作为regex_scripts或世界书条目输出\n- 可以输出到<动态适配>条目中\n</template_ejs>"
+    },
+    {
+      "identifier": "t_multi",
+      "name": "📋 多阶段调色盘",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 188,
+      "content": "{{addvar::template_knowledge::\\n[多阶段调色盘创作指南] 已启用}}{{trim}}\n<template_multi>\n多阶段调色盘创作指南\n\n当角色有多个成长阶段/形态切换时使用。\n每个阶段有自己的调色盘，阶段间有过渡条件。\n\n结构：\n- 阶段标题\n- 触发条件（好感度/剧情进度/事件触发）\n- 调色盘内容（底色/主色调/点缀/衍生）\n- 与上一阶段的差异\n- 过渡描写\n\n输出方式：\n- 作为<重要角色>条目的补充内容输出\n- 或配合EJS实现动态切换\n</template_multi>"
+    },
+    {
+      "identifier": "t_ejs_multi",
+      "name": "📋 EJS调色盘多阶段人设",
+      "enabled": false,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 187,
+      "content": "{{addvar::template_knowledge::\\n[EJS调色盘多阶段人设] 已启用}}{{trim}}\n<template_ejs_multi>\nEJS多阶段调色盘整合指南\n\n将多阶段调色盘与EJS模板结合，实现动态人设切换。\n\n工作流程：\n1. 定义各阶段的调色盘（用多阶段调色盘指南）\n2. 为每个阶段写EJS条件分支\n3. 在世界书条目中用EJS语法输出\n\nEJS模板示例：\n<% if (getvar(\"stat_data.角色.好感度\") >= 80) { %>\n[深爱阶段调色盘内容]\n<% } else if (getvar(\"stat_data.角色.好感度\") >= 50) { %>\n[好感阶段调色盘内容]\n<% } else { %>\n[陌生阶段调色盘内容]\n<% } %>\n\n输出方式：\n- 作为<动态适配>或<重要角色>条目输出\n- content中包含EJS语法\n- JSON格式：{\"entries\":[{\"comment\":\"<动态适配>角色名-多阶段人设\",\"content\":\"<% if (...) { %>...\",\"keys\":[\"角色名\"]}]}\n</template_ejs_multi>"
     },
     {
       "identifier": "worldInfoBefore",
@@ -510,6 +798,10 @@
           "enabled": false
         },
         {
+          "identifier": "wi_s",
+          "enabled": true
+        },
+        {
           "identifier": "worldInfoBefore",
           "enabled": true
         },
@@ -548,6 +840,130 @@
         {
           "identifier": "10",
           "enabled": true
+        },
+        {
+          "identifier": "wi_e",
+          "enabled": true
+        },
+        {
+          "identifier": "gen_s",
+          "enabled": false
+        },
+        {
+          "identifier": "t_creative",
+          "enabled": true
+        },
+        {
+          "identifier": "t_zero",
+          "enabled": true
+        },
+        {
+          "identifier": "t_tags",
+          "enabled": false
+        },
+        {
+          "identifier": "t_world",
+          "enabled": false
+        },
+        {
+          "identifier": "t_basic",
+          "enabled": false
+        },
+        {
+          "identifier": "t_palette",
+          "enabled": false
+        },
+        {
+          "identifier": "t_triple",
+          "enabled": false
+        },
+        {
+          "identifier": "t_explain",
+          "enabled": false
+        },
+        {
+          "identifier": "t_wardrobe",
+          "enabled": false
+        },
+        {
+          "identifier": "t_nsfw",
+          "enabled": false
+        },
+        {
+          "identifier": "t_pistol",
+          "enabled": false
+        },
+        {
+          "identifier": "t_npc",
+          "enabled": false
+        },
+        {
+          "identifier": "t_summary",
+          "enabled": false
+        },
+        {
+          "identifier": "t_free",
+          "enabled": false
+        },
+        {
+          "identifier": "t_opening",
+          "enabled": false
+        },
+        {
+          "identifier": "t_frontend",
+          "enabled": false
+        },
+        {
+          "identifier": "t_wb_eval",
+          "enabled": false
+        },
+        {
+          "identifier": "gen_e",
+          "enabled": false
+        },
+        {
+          "identifier": "mvu_s",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_schema",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_init",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_update",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_list",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_output",
+          "enabled": false
+        },
+        {
+          "identifier": "t_mvu_bar",
+          "enabled": false
+        },
+        {
+          "identifier": "t_ejs",
+          "enabled": false
+        },
+        {
+          "identifier": "t_multi",
+          "enabled": false
+        },
+        {
+          "identifier": "t_ejs_multi",
+          "enabled": false
+        },
+        {
+          "identifier": "mvu_e",
+          "enabled": false
         },
         {
           "identifier": "40",
