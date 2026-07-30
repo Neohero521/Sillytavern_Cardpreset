@@ -2797,7 +2797,7 @@
     var cd = _cardData || {};
     var entries = (cd.character_book && cd.character_book.entries) || [];
     function hasStr(s) { return !!(s && s.toString().trim()); }
-    function chk(ok) { return ok ? '<span class="cm-ok">✓</span>' : '<span class="cm-no">○</span>'; }
+    function chk(ok) { return ok ? '<span class="cm-field-status ok">✓</span>' : '<span class="cm-field-status">○</span>'; }
     var rows = [
       ['name', hasStr(cd.name)],
       ['description', hasStr(cd.description)],
@@ -2810,13 +2810,9 @@
       ['世界书(' + entries.length + ')', entries.length > 0]
     ];
     var body = rows.map(function (r) {
-      return '<div class="cm-field"><span class="cm-nm">' + escHtml(r[0]) + '</span>' + chk(r[1]) + '</div>';
+      return '<div class="cm-field"><span class="cm-field-name">' + escHtml(r[0]) + '</span>' + chk(r[1]) + '</div>';
     }).join('');
-    return ''
-      + '<div class="cm-section open">'
-      + '<div class="cm-hd"><span>📋 角色卡预览</span><span class="cm-arrow">▶</span></div>'
-      + '<div class="cm-bd">' + body + '</div>'
-      + '</div>';
+    return body;
   }
 
   function renderPresetHtml() {
@@ -2828,21 +2824,17 @@
     var body = '';
     order.forEach(function (sec) {
       if (!groups[sec].length) return;
-      body += '<div class="cm-group">' + escHtml(SECTION_LABELS[sec] || sec) + '</div>';
+      body += '<div class="cm-preset-group-title">' + escHtml(SECTION_LABELS[sec] || sec) + '</div>';
       groups[sec].forEach(function (p) {
-        var cls = 'cm-toggle' + (p.enabled ? ' on' : '');
+        var cls = 'toggle' + (p.enabled ? ' on' : '');
         body += '<div class="cm-preset-item">'
-          + '<span class="cm-nm" title="' + escHtml(p.name) + '">' + escHtml(p.displayName || p.name) + '</span>'
+          + '<span class="label" title="' + escHtml(p.name) + '">' + escHtml(p.displayName || p.name) + '</span>'
           + '<div class="' + cls + '" data-name="' + escHtml(p.name) + '"></div>'
           + '</div>';
       });
     });
-    if (!body) body = '<div class="cm-empty">未检测到预设提示词<br>请先在 ST 中导入写卡预设</div>';
-    return ''
-      + '<div class="cm-section">'
-      + '<div class="cm-hd"><span>⚙️ 预设开关</span><span class="cm-arrow">▶</span></div>'
-      + '<div class="cm-bd">' + body + '</div>'
-      + '</div>';
+    if (!body) body = '<div style="font-size:11px;color:#484f58;">未检测到预设提示词</div>';
+    return body;
   }
 
   function renderActionsHtml() {
@@ -2856,32 +2848,58 @@
   }
 
   function renderPanel() {
-    if (!_toolbar) return;
-    var p = _toolbar.panel;
+    if (!_toolbar || !_toolbar.doc) return;
+    var d = _toolbar.doc;
     try {
       var charName = fetchCurrentCharName();
       var completion = calcCompletion();
-      var statusHtml = '', cardHtml = '', presetHtml = '', actionsHtml = '';
-      try { statusHtml = renderStatusHtml(charName, completion); } catch(e) { console.warn('[时之写卡器] renderStatusHtml 失败:', e); }
-      try { cardHtml = renderCardPreviewHtml(); } catch(e) { console.warn('[时之写卡器] renderCardPreviewHtml 失败:', e); }
-      try { presetHtml = renderPresetHtml(); } catch(e) { console.warn('[时之写卡器] renderPresetHtml 失败:', e); }
-      try { actionsHtml = renderActionsHtml(); } catch(e) { console.warn('[时之写卡器] renderActionsHtml 失败:', e); }
-      var html = ''
-        + '<div class="cm-title">'
-        + '<span>⚡ 时之写卡器</span>'
-        + '<div class="cm-title-btns">'
-        + '<button data-act="collapse" title="收起">−</button>'
-        + '<button data-act="close" title="关闭">×</button>'
-        + '</div>'
-        + '</div>'
-        + '<div class="cm-body">'
-        + statusHtml + cardHtml + presetHtml + actionsHtml
-        + '</div>';
-      p.innerHTML = html;
-      try { wirePanelEvents(); } catch(e) { console.warn('[时之写卡器] wirePanelEvents 失败:', e); }
+
+      // 更新状态条
+      var cn = d.getElementById('charName');
+      if (cn) cn.textContent = charName || '-';
+      var mc = d.getElementById('msgCount');
+      if (mc) mc.textContent = String(_chatMsgCount || 0);
+      var cl = d.getElementById('completionLabel');
+      if (cl) cl.textContent = Math.round(completion.pct) + '%';
+      var pf = d.getElementById('progressFill');
+      if (pf) pf.style.width = Math.round(completion.pct) + '%';
+
+      // 更新角色卡字段
+      var cf = d.getElementById('cardFields');
+      if (cf) {
+        var cardHtml = renderCardPreviewHtml();
+        cf.innerHTML = cardHtml;
+        var ct = d.getElementById('cardProgressText');
+        if (ct) ct.textContent = completion.done + '/' + completion.total;
+      }
+
+      // 更新预设开关
+      var ps = d.getElementById('presets');
+      if (ps) {
+        var presetHtml = renderPresetHtml();
+        ps.innerHTML = presetHtml;
+        // 绑定开关事件
+        ps.querySelectorAll('.cm-preset-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            var toggle = item.querySelector('.toggle');
+            var name = toggle ? toggle.dataset.name : '';
+            if (name) togglePresetPrompt(name);
+            renderPanel();
+          });
+        });
+        var pc = d.getElementById('presetCount');
+        if (pc) {
+          var total = 0, on = 0;
+          for (var k in _presetState) { total++; if (_presetState[k]) on++; }
+          pc.textContent = on + '/' + total;
+        }
+      }
+
+      // 更新徽标
+      updateBadge();
+      updateDot();
     } catch (e) {
-      console.error('[时之写卡器] renderPanel 整体失败:', e);
-      p.innerHTML = '<div style="padding:12px;color:#fca5a5;font-size:12px;">面板渲染失败: ' + (e && e.message || e) + '</div>';
+      console.error('[时之写卡器] renderPanel 失败:', e);
     }
   }
 
@@ -2967,21 +2985,15 @@
   // setExpanded：兼容 iframe 方式
   function setExpanded(v) {
     _expanded = !!v;
-    if (!_toolbar || !_toolbar.iframe) {
+    if (!_toolbar || !_toolbar.panel) {
       if (v && !_toolbar) createToolbar();
       return;
     }
     if (_expanded) {
-      _toolbar.panel.classList.add('show');
-      _toolbar.iframe.style.width = '360px';
-      _toolbar.iframe.style.height = '560px';
-      _toolbar.iframe.style.borderRadius = '14px';
+      _toolbar.panel.classList.remove('hidden');
       renderPanel();
     } else {
-      _toolbar.panel.classList.remove('show');
-      _toolbar.iframe.style.width = '60px';
-      _toolbar.iframe.style.height = '60px';
-      _toolbar.iframe.style.borderRadius = '30px';
+      _toolbar.panel.classList.add('hidden');
     }
   }
 
@@ -3020,154 +3032,171 @@
     doc.addEventListener('touchend', onUp);
   }
 
-  // 创建悬浮工具条：极简测试版
-  // 先创建一个最简单的 iframe（红色背景），确认能显示再加功能
+  // 创建悬浮工具条：1:1 照搬原版 createModalIframe 模式
+  // 原版已验证可在 ST 沙箱工作：Promise + load 事件 + contentDocument
   function createToolbar() {
     if (_toolbar) {
-      try { setExpanded(true); } catch(e) { console.error('[时之写卡器] 展开失败:', e); }
+      try { setExpanded(true); } catch(e) {}
       return;
     }
-    try {
-      if (!_cardData) initCardData();
-      var pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-      if (!pDoc || !pDoc.body) {
-        console.error('[时之写卡器] parent.document 无 body');
-        return;
+    var parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+    if (!parentDoc || !parentDoc.body) {
+      console.error('[时之写卡器] parent.document.body 不可用');
+      return;
+    }
+    // 先创建一个折叠态的小圆钮
+    var old = parentDoc.getElementById(SCRIPT_ID + '-toolbar');
+    if (old) old.remove();
+    var iframe = parentDoc.createElement('iframe');
+    iframe.id = SCRIPT_ID + '-toolbar';
+    iframe.setAttribute('script_id', SCRIPT_ID);
+    // 折叠态：56x56 圆形
+    iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:56px;height:56px;border:none;z-index:99999;background:linear-gradient(135deg,#7c3aed,#ec4899);border-radius:28px;overflow:hidden;box-shadow:0 8px 24px rgba(124,58,237,.45);';
+    var loaded = false;
+    iframe.addEventListener('load', function() {
+      if (loaded) return;
+      loaded = true;
+      try {
+        var d = iframe.contentDocument || iframe.contentWindow.document;
+        // 注入样式（照搬原版方式）
+        var s = d.createElement('style');
+        s.textContent = '*{margin:0;padding:0;box-sizing:border-box}'
+          + 'html,body{height:100%;width:100%;overflow:hidden}'
+          + 'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#c9d1d9;font-size:13px}'
+          + '.cm-fab{width:100%;height:100%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center}'
+          + '.cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
+          + '.cm-badge.zero{background:#6b7280}'
+          + '.cm-dot{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
+          + '.cm-dot.off{background:#6b7280}'
+          + '.cm-panel{position:fixed;bottom:80px;right:0;width:340px;height:500px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden}'
+          + '.cm-panel.hidden{display:none}'
+          + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:600;font-size:14px;color:#fff}'
+          + '.cm-title-btns{display:flex;gap:6px}'
+          + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:14px}'
+          + '.cm-body{flex:1;overflow-y:auto;padding:12px}'
+          + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+          + '.cm-status .stat{color:#8b949e}'
+          + '.cm-status .stat b{color:#e6edf3}'
+          + '.cm-progress{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:8px 0 12px}'
+          + '.cm-progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .3s}'
+          + '.cm-section{margin-bottom:10px}'
+          + '.cm-section-title{font-size:12px;color:#d2a8ff;font-weight:600;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}'
+          + '.cm-card-fields{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:8px 10px}'
+          + '.cm-field{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d}'
+          + '.cm-field:last-child{border-bottom:none}'
+          + '.cm-field-name{color:#8b949e}'
+          + '.cm-field-status.ok{color:#3fb950}'
+          + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}'
+          + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer}'
+          + '.cm-btn:hover{background:#30363d}'
+          + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}'
+          + '.cm-preset-group{margin-bottom:6px}'
+          + '.cm-preset-group-title{font-size:11px;color:#8b949e;margin-bottom:3px;font-weight:600}'
+          + '.cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;font-size:10.5px;border-radius:4px;cursor:pointer}'
+          + '.cm-preset-item:hover{background:#161b22}'
+          + '.cm-preset-item .toggle{width:28px;height:16px;border-radius:8px;background:#484f58;position:relative;transition:background .2s}'
+          + '.cm-preset-item .toggle.on{background:#3fb950}'
+          + '.cm-preset-item .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}'
+          + '.cm-preset-item .toggle.on::after{transform:translateX(12px)}'
+          + '.cm-preset-item .label{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}';
+        d.head.appendChild(s);
+
+        // 写入 FAB 结构
+        d.body.innerHTML = '<button class="cm-fab" id="fab">⚡<span class="cm-badge zero" id="badge">0%</span></button>'
+          + '<div class="cm-dot" id="dot"></div>'
+          + '<div class="cm-panel hidden" id="panel">'
+          + '  <div class="cm-title">'
+          + '    <span>⚡ 时之写卡器</span>'
+          + '    <div class="cm-title-btns"><button id="collapseBtn">—</button><button id="closeBtn">✕</button></div>'
+          + '  </div>'
+          + '  <div class="cm-body">'
+          + '    <div class="cm-status">'
+          + '      <span class="stat">👤 <b id="charName">-</b></span>'
+          + '      <span class="stat">💬 <b id="msgCount">0</b></span>'
+          + '      <span class="stat">📊 <b id="completionLabel">0%</b></span>'
+          + '    </div>'
+          + '    <div class="cm-progress"><div class="cm-progress-fill" id="progressFill" style="width:0%"></div></div>'
+          + '    <div class="cm-section">'
+          + '      <div class="cm-section-title" data-toggle="cardFields">📋 角色卡 <span id="cardProgressText">0/9</span></div>'
+          + '      <div class="cm-card-fields" id="cardFields"></div>'
+          + '    </div>'
+          + '    <div class="cm-section">'
+          + '      <div class="cm-section-title" data-toggle="presets">⚙️ 预设开关 <span id="presetCount"></span></div>'
+          + '      <div id="presets"></div>'
+          + '    </div>'
+          + '    <div class="cm-actions">'
+          + '      <button class="cm-btn primary" id="exportBtn">📥 导出</button>'
+          + '      <button class="cm-btn" id="importBtn">📤 导入</button>'
+          + '      <button class="cm-btn" id="refreshBtn">🔄 刷新</button>'
+          + '      <button class="cm-btn" id="clearBtn">🗑️ 清空</button>'
+          + '    </div>'
+          + '  </div>'
+          + '</div>';
+
+        var fab = d.getElementById('fab');
+        var badge = d.getElementById('badge');
+        var dot = d.getElementById('dot');
+        var panel = d.getElementById('panel');
+
+        _toolbar = { iframe: iframe, fab: fab, badge: badge, dot: dot, panel: panel, doc: d };
+
+        // FAB 点击展开/收起
+        fab.addEventListener('click', function () { setExpanded(!_expanded); });
+        // 关闭按钮
+        d.getElementById('closeBtn').addEventListener('click', function () {
+          iframe.remove(); _toolbar = null;
+          _expanded = false;
+        });
+        // 折叠按钮
+        d.getElementById('collapseBtn').addEventListener('click', function () {
+          setExpanded(false);
+        });
+        // 分区折叠
+        d.querySelectorAll('.cm-section-title').forEach(function(el) {
+          el.addEventListener('click', function() {
+            var target = d.getElementById(el.dataset.toggle);
+            if (target) target.style.display = target.style.display === 'none' ? '' : 'none';
+          });
+        });
+        // 操作按钮
+        d.getElementById('exportBtn').addEventListener('click', exportCard);
+        d.getElementById('importBtn').addEventListener('click', importCard);
+        d.getElementById('refreshBtn').addEventListener('click', function () { autoExtractFromChat(true); });
+        d.getElementById('clearBtn').addEventListener('click', clearCardData);
+
+        console.log('[时之写卡器] ✅ 工具条创建成功');
+
+        // 启动监听
+        if (!_listenersRegistered) {
+          try {
+            registerChatListeners(function () { autoExtractFromChat(); });
+            _listenersRegistered = true;
+          } catch(e) { console.warn('[时之写卡器] registerChatListeners 失败:', e); }
+        }
+        // 初始数据拉取
+        setTimeout(function () {
+          try { autoExtractFromChat(true); } catch(e) {}
+          try { updateBadge(); } catch(e) {}
+          try { renderPanel(); } catch(e) {}
+        }, 300);
+      } catch (e) {
+        console.error('[时之写卡器] onLoad 写入失败:', e);
       }
+    });
+    parentDoc.body.appendChild(iframe);
+    console.log('[时之写卡器] iframe 已挂载');
 
-      // 移除旧实例
-      var old = pDoc.getElementById(SCRIPT_ID + '-toolbar');
-      if (old) old.remove();
-
-      // ===== 创建 iframe（参考原版 createModalIframe）=====
-      var iframe = pDoc.createElement('iframe');
-      iframe.id = SCRIPT_ID + '-toolbar';
-      iframe.setAttribute('script_id', SCRIPT_ID);
-      // 先做一个可见的测试：红色背景 + 白色文字
-      iframe.style.cssText = 'position:fixed;bottom:24px;right:24px;width:360px;height:560px;border:2px solid #ff0000;z-index:99999;background:#ff0000;border-radius:14px;overflow:auto;';
-
-      var loaded = false;
-      var onLoad = function () {
-        if (loaded) return;
-        loaded = true;
+    // 兜底：load 事件可能不触发
+    setTimeout(function () {
+      if (!loaded) {
+        console.warn('[时之写卡器] load 未触发，强制写入');
         try {
           var d = iframe.contentDocument || iframe.contentWindow.document;
-          d.body.style.background = '#ff0000';
-          d.body.style.color = '#fff';
-          d.body.style.padding = '20px';
-          d.body.style.fontFamily = 'sans-serif';
-          d.body.innerHTML = '<h2 style="color:#fff;margin-bottom:12px;">⚡ 时之写卡器</h2>'
-            + '<p style="margin-bottom:8px;">如果你看到这个红色面板，说明 iframe 创建成功！</p>'
-            + '<p style="font-size:12px;opacity:.8;">下一步将把工具条内容渲染到这里。</p>'
-            + '<button id="closeBtn" style="margin-top:16px;padding:8px 20px;background:#fff;color:#ff0000;border:none;border-radius:6px;cursor:pointer;">关闭</button>'
-            + '<button id="upgradeBtn" style="margin-top:16px;margin-left:8px;padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;">升级为工具条</button>';
-          var closeBtn = d.getElementById('closeBtn');
-          if (closeBtn) closeBtn.onclick = function () { iframe.remove(); _toolbar = null; };
-          var upgradeBtn = d.getElementById('upgradeBtn');
-          if (upgradeBtn) upgradeBtn.onclick = function () {
-            d.body.innerHTML = '<p style="color:#fff;">升级中...</p>';
-            renderFullToolbar(iframe, d, pDoc);
-          };
-          console.log('[时之写卡器] ✅ iframe 已创建并显示红色测试面板');
-        } catch (e) {
-          console.error('[时之写卡器] onLoad 写入内容失败:', e);
-          // 即使 contentDocument 写入失败，iframe 也应该显示红色背景
-          // 因为我们在 style 里设了 background:#ff0000
-        }
-      };
-
-      iframe.addEventListener('load', onLoad);
-      pDoc.body.appendChild(iframe);
-      console.log('[时之写卡器] iframe 已 append 到 parent.document.body');
-
-      // 兜底：如果 load 不触发，直接写入
-      setTimeout(function () {
-        if (!loaded) {
-          console.warn('[时之写卡器] load 事件未触发，直接写入内容');
-          try {
-            var d2 = iframe.contentDocument || iframe.contentWindow.document;
-            d2.body.innerHTML = '<p style="color:#fff;padding:20px;">兜底：红色面板（load 未触发）</p>';
-            loaded = true;
-          } catch(e) {
-            console.error('[时之写卡器] 兜底写入也失败:', e);
-          }
-        }
-      }, 2000);
-
-      // 2.5秒后再次检查 iframe 是否在 DOM 中
-      setTimeout(function () {
-        var found = pDoc.getElementById(SCRIPT_ID + '-toolbar');
-        if (!found) {
-          console.error('[时之写卡器] ❌ iframe 不在 DOM 中！可能被 ST 移除了');
-        } else {
-          console.log('[时之写卡器] ✅ iframe 在 DOM 中，尺寸:', found.offsetWidth, 'x', found.offsetHeight);
-        }
-      }, 2500);
-    } catch (e) {
-      console.error('[时之写卡器] ❌ createToolbar 整体失败:', e);
-    }
-  }
-
-  // 将红色面板升级为完整工具条
-  function renderFullToolbar(iframe, d, pDoc) {
-    // 创建完整的工具条内容
-    var styleEl = d.createElement('style');
-    styleEl.textContent = ''
-      + '*{margin:0;padding:0;box-sizing:border-box}'
-      + 'html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#e6edf3}'
-      + '.cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:600;font-size:14px;color:#fff}'
-      + '.cm-title-btns{display:flex;gap:6px}'
-      + '.cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:14px}'
-      + '.cm-body{padding:12px;overflow-y:auto;height:calc(100% - 46px)}'
-      + '.cm-status{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#161b22;border:1px solid #21262d;border-radius:8px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
-      + '.cm-status .stat{color:#8b949e}'
-      + '.cm-status .stat b{color:#e6edf3}'
-      + '.cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}'
-      + '.cm-btn{padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:11px;cursor:pointer}'
-      + '.cm-btn:hover{background:#30363d}'
-      + '.cm-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;color:#fff}';
-    d.head.appendChild(styleEl);
-    d.body.innerHTML = ''
-      + '<div class="cm-title">'
-      + '  <span>⚡ 时之写卡器</span>'
-      + '  <div class="cm-title-btns"><button id="closeBtn">✕</button></div>'
-      + '</div>'
-      + '<div class="cm-body">'
-      + '  <div class="cm-status"><span class="stat">👤 <b id="charName">加载中...</b></span><span class="stat">💬 <b id="msgCount">0</b></span></div>'
-      + '  <p style="font-size:12px;color:#8b949e;margin-bottom:10px;">在 ST 中聊天，工具条会自动从 AI 消息中提取角色卡数据。</p>'
-      + '  <div class="cm-actions">'
-      + '    <button class="cm-btn primary" id="exportBtn">📥 导出角色卡</button>'
-      + '    <button class="cm-btn" id="refreshBtn">🔄 刷新数据</button>'
-      + '    <button class="cm-btn" id="importBtn">📤 导入角色卡</button>'
-      + '    <button class="cm-btn" id="clearBtn">🗑️ 清空数据</button>'
-      + '  </div>'
-      + '</div>';
-    var fab = d.createElement('button');
-    fab.className = 'cm-fab';
-    fab.id = 'fab';
-    fab.textContent = '⚡';
-    fab.style.cssText = 'position:absolute;bottom:10px;left:10px;width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:18px;';
-    d.body.appendChild(fab);
-
-    _toolbar = { iframe: iframe, fab: fab, badge: null, dot: null, panel: null, doc: d };
-
-    // 绑定事件
-    d.getElementById('closeBtn').onclick = function () { iframe.remove(); _toolbar = null; };
-    d.getElementById('exportBtn').onclick = exportCard;
-    d.getElementById('refreshBtn').onclick = function () { autoExtractFromChat(true); };
-    d.getElementById('importBtn').onclick = importCard;
-    d.getElementById('clearBtn').onclick = clearCardData;
-
-    console.log('[时之写卡器] ✅ 完整工具条已渲染');
-
-    // 启动聊天监听
-    if (!_listenersRegistered) {
-      try {
-        registerChatListeners(function () { autoExtractFromChat(); });
-        _listenersRegistered = true;
-      } catch(e) {}
-    }
-    setTimeout(function () { try { autoExtractFromChat(true); } catch(e) {} }, 300);
+          d.body.innerHTML = '<p style="padding:20px;color:#fff;">加载中...</p>';
+          loaded = true;
+        } catch(e) { console.error('[时之写卡器] 强制写入失败:', e); }
+      }
+    }, 2000);
   }
 
   // 从聊天消息中提取 ```json ... ``` 代码块
