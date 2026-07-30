@@ -270,6 +270,15 @@
       "content": "  var MODULE_SYSTEM = {\n    permanent: [\n      { key: 'axiom', name: '基础公理', icon: '🏛️', weight: 35, position: 0, order: 250 },\n      { key: 'soft_rules', name: '交互软规则', icon: '🤝', weight: 30, position: 1, order: 150 },\n      { key: 'core_rules', name: '核心铁则', icon: '🔐', weight: 35, order: 100 },\n    ],\n    trigger: [\n      { key: 'near_constraint', name: '近场强约束', icon: '🎯', weight: 25, position: 2, depth: 2 },\n      { key: 'scene_mechanics', name: '场景机制', icon: '⚔️', weight: 25, position: 1, depth: 3 },\n      { key: 'entity_interact', name: '实体交互', icon: '👥', weight: 25, position: 1, depth: 3 },\n      { key: 'narrative_bg', name: '叙事背景', icon: '📖', weight: 25, position: 4, depth: 5 }\n    ],\n    dynamic: [\n      { key: 'dynamic_adapt', name: '动态适配', icon: '🔄', weight: 100, position: 1, depth: 4 }\n    ],\n    variable: [\n      { key: 'init_var', name: '初始变量', icon: '📊', weight: 100, position: 0, order: 245 },\n      { key: 'var_update_rule', name: '变量更新规则', icon: '📝', weight: 100, position: 1, order: 145 }\n    ]\n  };"
     },
     {
+      "identifier": "cm_context",
+      "name": "⏱️ 写卡状态快照",
+      "enabled": true,
+      "injection_position": 4,
+      "injection_depth": 0,
+      "injection_order": 999,
+      "content": "<card_context>\n状态：首次生成\n</card_context>"
+    },
+    {
       "identifier": "wi_s",
       "name": "【worldinfo】",
       "enabled": true,
@@ -708,6 +717,10 @@
       "order": [
         {
           "identifier": "main",
+          "enabled": true
+        },
+        {
+          "identifier": "cm_context",
           "enabled": true
         },
         {

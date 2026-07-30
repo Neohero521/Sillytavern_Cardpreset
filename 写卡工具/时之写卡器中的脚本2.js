@@ -1109,6 +1109,7 @@
     cardData.character_book = cb;
     ensureCardDataShape();
     saveAll();
+    if (removed > 0) syncContextToPreset();
     return removed;
   }
 
@@ -1127,6 +1128,7 @@
     cardData.character_book = cb;
     ensureCardDataShape();
     saveAll();
+    if (fixed > 0) syncContextToPreset();
     return fixed;
   }
 
@@ -1415,12 +1417,21 @@
     html += '</div>';
 
     body.innerHTML = html;
-    // 点击卡片切换激活模块
+    // 点击卡片切换激活模块 + 自动激活对应预设模板
     body.querySelectorAll('.cm-ring-card').forEach(function(c) {
       c.addEventListener('click', function() {
-        state.activeModule = c.getAttribute('data-mod');
+        var modId = c.getAttribute('data-mod');
+        state.activeModule = modId;
         saveLS(LS_KEY, state);
         renderDashboardView();
+        // 自动切换对应创作模板组
+        try {
+          var refs = FIELD_PRESET_REFS[modId];
+          if (refs && refs.length) {
+            activateWriteMode(refs);
+            toast('已激活对应模板组：' + (DASH_MODULES.find(function(m){return m.id===modId;})||{}).label);
+          }
+        } catch(e) {}
       });
     });
     updateCompletion();
@@ -2127,6 +2138,7 @@
       editorState.originalValue = value;
       refreshDash();
       updateCompletion();
+      syncContextToPreset();
       toast('已保存：' + pathLabel(path));
     } catch (e) {
       toast('保存失败：' + (e.message || e), true);
@@ -2425,6 +2437,10 @@
     if (data.creator) cardData.creator = data.creator;
     if (data.creator_notes && !cardData.creator_notes) cardData.creator_notes = data.creator_notes;
     ensureCardDataShape();
+    saveAll();
+    refreshDash();
+    updateCompletion();
+    syncContextToPreset();
   }
 
   function buildExportableCard() {
@@ -2592,6 +2608,7 @@
         if (applyTop(k, patch.character[k], (FIELDS.find(function(f){return f.key===k})||{}).type)) changed++;
       }}
     }
+    if (changed > 0) syncContextToPreset();
     return changed;
   }
   function applyEntriesPatch(existing, incoming) {
@@ -2746,10 +2763,17 @@
         if (j) { applied += mergeJsonIntoCardData(j); }
       });
     });
+    // 从最后一条文本（通常是用户消息）里剥掉 JSON block，做关键词匹配自动切模板
+    if (texts.length > 0) {
+      var last = texts[texts.length - 1];
+      var stripped = last.replace(/```(?:json)?\s*[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim();
+      if (stripped.length >= 20) autoActivateFromText(stripped);
+    }
     ensureCardDataShape();
     saveAll();
     refreshDash();
     updateCompletion();
+    if (applied > 0) syncContextToPreset();
     return applied;
   }
 
@@ -2774,6 +2798,7 @@
   function init() {
     try {
       renderToolbar();
+      bindInjectionHandler();
       window.addEventListener('resize', function () {
         if (!ui) return;
         applyToolbarPosition(ui.toolbar);
@@ -2796,6 +2821,175 @@
       if (typeof w[fn] === 'function') return w[fn];
     } catch(e) {}
     return fallback || null;
+  }
+
+  // ST事件绑定封装
+  function stEventOn(evtName, cb) {
+    try {
+      var w = window.parent || window;
+      if (typeof w.eventOn === 'function' && w.tavern_events && w.tavern_events[evtName] !== undefined) {
+        var h = w.eventOn(w.tavern_events[evtName], cb);
+        (window._cmEventHandlers || (window._cmEventHandlers = [])).push(h);
+        return h;
+      }
+    } catch(e) { console.warn('[CM-IDE] eventOn failed:', e); }
+    return null;
+  }
+
+  // ST动态注入Prompt封装
+  function stInjectPrompts(arr, opts) {
+    try {
+      var w = window.parent || window;
+      if (typeof w.injectPrompts === 'function') {
+        return w.injectPrompts(arr, opts || {});
+      }
+    } catch(e) { console.warn('[CM-IDE] injectPrompts failed:', e); }
+    return null;
+  }
+
+  // 关键词 → 预设模板组（自动激活时用）
+  var AUTO_KEYWORDS = {
+    'basic':   ['角色基础','基本信息','外貌设定','人物设定','人物档案','角色档案','创建角色','写角色','name','description','写名字','外貌','名字','基础信息'],
+    'palette': ['性格调色盘','调色盘','三面性','二次解释','写性格','性格设定','性格','personality','心理','人物性格'],
+    'wardrobe':['衣柜','穿搭','着装','穿着','衣服','服饰','wardrobe','穿搭设定','衣橱'],
+    'nsfw':    ['nsfw','色情','18禁','h内容','手枪卡','xp','亲密','成人向','色色','成年人','性设定'],
+    'worldbook':['世界观','世界设定','力量体系','世界观设定','修仙体系','社会结构','写世界观','世界','背景设定','背景故事'],
+    'npc':     ['npc','配角','路人','npc设计','写npc','角色设计','次要角色','人物关系'],
+    'summary': ['角色速览','角色总览','人物关系','关系图','关系','速览','总览','关系网'],
+    'opening': ['开场白','first_mes','开篇','开局','first message','开场','对话开头','第一句','开场白写'],
+    'dynamic': ['前端美化','美化','正则脚本','正则','格式化','dynamic','样式','美化聊天','ui美化'],
+    'mvu_schema':['mvu','变量结构','zod','变量结构脚本','写变量','变量设计','variable'],
+    'mvu_init':['initvar','初始变量','初始化变量','变量初始','初始状态','初始化','初始化脚本'],
+    'mvu_update':['变量更新','更新规则','变量规则','jsonpatch','更新','变量逻辑','状态更新'],
+    'mvu_bar': ['状态栏','statusbar','状态条','ui界面','界面显示','状态显示','状态栏模板'],
+    'ejs':     ['ejs','分段人设','多阶段','动态提示词','分段','分阶段','阶段人设']
+  };
+
+  function autoActivateFromText(text) {
+    if (!text) return;
+    var lower = String(text).toLowerCase();
+    var matched = [];
+    Object.keys(AUTO_KEYWORDS).forEach(function(k) {
+      var words = AUTO_KEYWORDS[k];
+      for (var i = 0; i < words.length; i++) {
+        if (lower.indexOf(words[i]) !== -1) { matched.push(k); break; }
+      }
+    });
+    if (matched.length === 0) return;
+    var names = [];
+    matched.forEach(function(m) {
+      var refs = FIELD_PRESET_REFS[m];
+      if (refs) refs.forEach(function(r) { if (names.indexOf(r) === -1) names.push(r); });
+    });
+    if (names.length === 0) return;
+    try { activateWriteMode(names); } catch(e) {}
+    toast('已自动激活模板：' + matched.join('、'));
+  }
+
+  // 构建当前写卡状态快照（给AI看的"已写了什么"）
+  function buildCardContext() {
+    ensureCardDataShape();
+    var d = cardData;
+    var lines = [];
+    lines.push('<card_context>');
+    lines.push('【写卡器状态快照】以下为当前角色卡已填写的内容（由时之写卡器前端自动同步）。');
+    lines.push('四条铁则：(a) 未在此列出的字段=空，不要重复输出已有内容（除非用户明确要求修改/优化/补充）；(b) 修改/优化条目时 comment 必须与下方精确匹配（字符级完全一致），否则脚本无法用 comment 做 key 正确合并，最终会创建重复条目；(c) 增量输出变化字段与新增条目即可，不要输出整卡全量；(d) 新增条目放在 entries 数组；删除动作走 _delete 数组或 entry._action:"delete"。');
+    lines.push('');
+
+    var overall = calcOverallCompletion();
+    var modProgress = [];
+    DASH_MODULES.forEach(function(m) {
+      modProgress.push(m.label + ' ' + Math.round(calcModulePct(m.id)) + '%');
+    });
+    lines.push('总完成度: ' + Math.round(overall) + '% —— 模块细分: ' + modProgress.join(' / '));
+    lines.push('');
+
+    var FILLED = [];
+    ['name','description','personality','scenario','first_mes','mes_example',
+     'system_prompt','post_history_instructions','creator_notes','depth_prompt'].forEach(function(k) {
+      var v = getFieldValue(k);
+      if (typeof v === 'string' && v.trim().length > 0) {
+        FILLED.push('- ' + k + '（长度' + v.length + '/Token约' + countTokens(v) + '）');
+      }
+    });
+    if ((d.tags || []).length) FILLED.push('- tags（共' + d.tags.length + '个）: ' + d.tags.join(', '));
+    if ((d.alternate_greetings || []).length) FILLED.push('- alternate_greetings（共' + d.alternate_greetings.length + '条）');
+    if ((d.regex_scripts || []).length) FILLED.push('- regex_scripts（共' + d.regex_scripts.length + '条）');
+    lines.push('【已填顶层字段】');
+    if (FILLED.length === 0) lines.push('- （空）');
+    else FILLED.forEach(function(x) { lines.push(x); });
+    lines.push('');
+
+    var entries = (d.character_book && d.character_book.entries) || [];
+    lines.push('【已存在世界书条目（共' + entries.length + '条）】修改/优化时 comment 必须与下列精确匹配。');
+    if (entries.length === 0) {
+      lines.push('- （空）');
+    } else {
+      entries.forEach(function(e, idx) {
+        var comment = e.comment || ('(无comment，索引' + idx + ')');
+        var keys = (e.keys || []).length;
+        var clen = (typeof e.content === 'string') ? e.content.length : 0;
+        var matchedMod = null;
+        var m1 = comment.match(/^<([^>]+)>/);
+        if (m1 && ENTRY_PREFIX_MAP[m1[1]]) matchedMod = ENTRY_PREFIX_MAP[m1[1]];
+        if (!matchedMod) {
+          for (var kk in ENTRY_PREFIX_MAP) {
+            if (comment.indexOf(kk) >= 0) { matchedMod = ENTRY_PREFIX_MAP[kk]; break; }
+          }
+        }
+        var mod = matchedMod || 'entity';
+        lines.push('- [' + (idx + 1) + '] comment=' + JSON.stringify(comment) +
+          ' | 模块=' + mod +
+          ' | contentLen=' + clen + ' | keys=' + keys + (e.constant ? ' | constant' : ''));
+      });
+    }
+    lines.push('');
+
+    try {
+      var act = getActiveTemplates();
+      if (act && act.length) {
+        lines.push('【当前启用创作模板】' + act.map(function(t) { return t.name; }).join('、'));
+      }
+    } catch(e) {}
+    lines.push('</card_context>');
+    return lines.join('\n');
+  }
+
+  // 把上下文同步写回预设中的 cm_context 条目（作为持久化快照保存）
+  function syncContextToPreset() {
+    var updatePresetWith = stAPI('updatePresetWith');
+    if (!updatePresetWith) return false;
+    try {
+      var content = buildCardContext();
+      updatePresetWith('in_use', function(preset) {
+        if (preset && preset.prompts) {
+          var p = preset.prompts.find(function(e) { return e && e.identifier === 'cm_context'; });
+          if (p) { p.content = content; p.enabled = true; }
+        }
+        return preset;
+      });
+      return true;
+    } catch(e) { console.warn('[CM-IDE] syncContextToPreset failed:', e); return false; }
+  }
+
+  // 绑定 GENERATION_AFTER_COMMANDS → 每次AI生成前注入实时上下文
+  function bindInjectionHandler() {
+    if (window._cmInjectionBound) return;
+    window._cmInjectionBound = true;
+    stEventOn('GENERATION_AFTER_COMMANDS', function() {
+      try {
+        var content = buildCardContext();
+        stInjectPrompts([{
+          id: 'cm-card-context',
+          position: 'in_chat',
+          depth: 0,
+          role: 'system',
+          content: content,
+          should_scan: false
+        }], { once: true });
+        syncContextToPreset();
+      } catch(e) { console.warn('[CM-IDE] injection failed:', e); }
+    });
   }
 
   // 读取当前预设
@@ -2884,6 +3078,7 @@
       ensureCardDataShape(); saveAll();
       refreshDash();
       updateCompletion();
+      syncContextToPreset();
     },
     getCardField: getFieldValue,
     countTokens: countTokens,
@@ -2894,6 +3089,7 @@
       cardData = blankCardData(); ensureCardDataShape(); saveAll();
       refreshDash();
       updateCompletion();
+      syncContextToPreset();
     },
     mergePatch: function (p) {
       mergeJsonIntoCardData(p); saveAll();
@@ -2917,6 +3113,12 @@
     activateWriteMode: activateWriteMode,
     togglePresetPrompts: togglePresetPrompts,
     fieldPresetRefs: FIELD_PRESET_REFS,
+    // ===== 深度预设配合 =====
+    buildCardContext: buildCardContext,
+    syncContextToPreset: syncContextToPreset,
+    bindInjectionHandler: bindInjectionHandler,
+    autoActivateFromText: autoActivateFromText,
+    AUTO_KEYWORDS: AUTO_KEYWORDS,
     // ===== 编辑器视图 =====
     openEditor: openEditor,
     saveEditorContent: saveEditorContent,
