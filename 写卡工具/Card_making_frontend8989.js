@@ -2659,6 +2659,49 @@
 
   var BUTTON_NAME = '时之写卡器';
 
+  // ===== 悬浮工具条位置/状态持久化（参考 Selene Music 悬浮方案）=====
+  var SETTINGS_KEY = 'cm-toolbar-settings-v1';
+  var _settings = { expanded: false, left: null, top: null, miniLeft: null, miniTop: null };
+
+  function _getStorage() {
+    try { if (window.parent && window.parent.localStorage) return window.parent.localStorage; } catch (_) {}
+    try { if (window.top && window.top.localStorage) return window.top.localStorage; } catch (_) {}
+    try { return window.localStorage; } catch (_) { return null; }
+  }
+  function loadSettings() {
+    try {
+      var ls = _getStorage();
+      if (!ls) return;
+      var raw = ls.getItem(SETTINGS_KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        if (s && typeof s === 'object') {
+          if (typeof s.expanded === 'boolean') _settings.expanded = s.expanded;
+          if (typeof s.left === 'number') _settings.left = s.left;
+          if (typeof s.top === 'number') _settings.top = s.top;
+          if (typeof s.miniLeft === 'number') _settings.miniLeft = s.miniLeft;
+          if (typeof s.miniTop === 'number') _settings.miniTop = s.miniTop;
+        }
+      }
+    } catch (_) {}
+    _expanded = _settings.expanded;
+  }
+  function saveSettings() {
+    try {
+      var ls = _getStorage();
+      if (ls) ls.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+    } catch (_) {}
+  }
+  function _viewport() {
+    try {
+      var vv = window.parent && window.parent.visualViewport;
+      if (vv) return { width: vv.width, height: vv.height };
+    } catch (_) {}
+    var w = (window.parent && window.parent.innerWidth) || window.innerWidth || 390;
+    var h = (window.parent && window.parent.innerHeight) || window.innerHeight || 700;
+    return { width: w, height: h };
+  }
+
   function escHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -2707,83 +2750,88 @@
     _chatMsgCount = 0;
   }
 
-  // ===== 样式注入（一次性，紧凑现代风） =====
+  // ===== 样式注入（参考 Selene Music：单根容器 + #ID 作用域 + .mini 折叠态）=====
   function injectStyles() {
     var doc = parentDoc();
     var styleId = SCRIPT_ID + '-styles';
     if (doc.getElementById(styleId)) return;
+    var R = '#' + SCRIPT_ID + '-toolbar';
     var css = ''
-      + '#' + SCRIPT_ID + '-toolbar *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}'
-      // 容器：固定右下角
-      + '#' + SCRIPT_ID + '-toolbar{position:fixed;bottom:24px;right:24px;z-index:999999}'
-      // 折叠态 FAB：圆形渐变按钮
-      + '#' + SCRIPT_ID + '-toolbar .cm-fab{position:relative;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,.45);transition:transform .25s ease,box-shadow .25s ease}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-fab:hover{transform:scale(1.08);box-shadow:0 10px 30px rgba(124,58,237,.6)}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-fab.active{transform:scale(0.92)}'
-      // FAB 完成度徽标
-      + '#' + SCRIPT_ID + '-toolbar .cm-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-badge.zero{background:#6b7280}'
-      // FAB 同步状态点
-      + '#' + SCRIPT_ID + '-toolbar .cm-dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(13,17,23,.8)}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-dot.off{background:#6b7280}'
-      // 展开态面板
-      + '#' + SCRIPT_ID + '-toolbar .cm-panel{position:absolute;bottom:64px;right:0;width:340px;max-height:560px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;animation:cmPop .22s ease-out}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-panel.show{display:flex}'
+      + R + '{position:fixed;z-index:2147483647;width:360px;max-height:580px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.6);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;overflow:hidden;isolation:isolate;animation:cmPop .22s ease-out}'
+      + R + ' *{margin:0;padding:0;box-sizing:border-box}'
+      + R + '.hidden{display:none!important}'
       + '@keyframes cmPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}'
-      // 标题栏（可拖拽）
-      + '#' + SCRIPT_ID + '-toolbar .cm-title{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns{display:flex;gap:6px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-title .cm-title-btns button:hover{background:rgba(255,255,255,.32)}'
-      // 主体
-      + '#' + SCRIPT_ID + '-toolbar .cm-body{overflow-y:auto;padding:12px 14px;flex:1}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar{width:6px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-track{background:transparent}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-body::-webkit-scrollbar-thumb:hover{background:#484f58}'
+      // —— 折叠态（mini）：右下角圆形悬浮按钮，点击展开 ——
+      + R + '.mini{width:56px!important;height:56px!important;max-height:none!important;border-radius:50%!important;overflow:visible!important;background:linear-gradient(135deg,#7c3aed,#ec4899)!important;border:none!important;box-shadow:0 8px 24px rgba(124,58,237,.5)!important;cursor:grab;animation:none}'
+      + R + '.mini:active{cursor:grabbing}'
+      + R + '.mini .cm-head,' + R + '.mini .cm-body{display:none!important}'
+      + R + '.mini .cm-mini-shell{display:flex!important}'
+      + R + ' .cm-mini-shell{display:none;position:absolute;inset:0;width:100%;height:100%;border:none;background:transparent;color:#fff;font-size:24px;font-weight:bold;cursor:pointer;align-items:center;justify-content:center;outline:none;transition:transform .2s}'
+      + R + ' .cm-mini-shell:hover{transform:scale(1.08)}'
+      + R + ' .cm-mini-badge{display:none;position:absolute;right:-4px;bottom:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#22c55e;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;border:2px solid #0d1117;line-height:1}'
+      + R + '.mini .cm-mini-badge{display:flex!important}'
+      + R + '.mini .cm-mini-badge.zero{background:#6b7280}'
+      // —— 标题栏（可拖拽）——
+      + R + ' .cm-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;cursor:move;user-select:none;font-weight:600;font-size:14px;touch-action:none}'
+      + R + ' .cm-head .cm-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      + R + ' .cm-head .cm-badge{min-width:34px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.25);color:#fff;font-size:11px;font-weight:700;text-align:center}'
+      + R + ' .cm-head .cm-badge.zero{background:rgba(0,0,0,.15);opacity:.7}'
+      + R + ' .cm-head .cm-head-btns{display:flex;gap:6px}'
+      + R + ' .cm-head .cm-head-btns button{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s}'
+      + R + ' .cm-head .cm-head-btns button:hover{background:rgba(255,255,255,.32)}'
+      // —— 主体 ——
+      + R + ' .cm-body{overflow-y:auto;padding:12px 14px;max-height:520px}'
+      + R + ' .cm-body::-webkit-scrollbar{width:6px}'
+      + R + ' .cm-body::-webkit-scrollbar-track{background:transparent}'
+      + R + ' .cm-body::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}'
+      + R + ' .cm-body::-webkit-scrollbar-thumb:hover{background:#484f58}'
       // 状态条（紧凑横排）
-      + '#' + SCRIPT_ID + '-toolbar .cm-status{display:flex;align-items:center;gap:8px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-chip b{color:#58a6ff;font-weight:600}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn{margin-left:auto;padding:3px 8px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:#fff}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn.on{background:#238636}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-status .cm-sync-btn.off{background:#6b7280}'
+      + R + ' .cm-status{display:flex;align-items:center;gap:8px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap}'
+      + R + ' .cm-status .cm-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9}'
+      + R + ' .cm-status .cm-chip b{color:#58a6ff;font-weight:600}'
+      + R + ' .cm-status .cm-sync-btn{margin-left:auto;padding:3px 8px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:#fff}'
+      + R + ' .cm-status .cm-sync-btn.on{background:#238636}'
+      + R + ' .cm-status .cm-sync-btn.off{background:#6b7280}'
       // 进度条
-      + '#' + SCRIPT_ID + '-toolbar .cm-progress{height:5px;background:#21262d;border-radius:3px;overflow:hidden;margin-bottom:10px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-progress > div{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .35s ease;border-radius:3px}'
+      + R + ' .cm-progress{height:5px;background:#21262d;border-radius:3px;overflow:hidden;margin-bottom:10px}'
+      + R + ' .cm-progress > div{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .35s ease;border-radius:3px}'
       // 折叠区段
-      + '#' + SCRIPT_ID + '-toolbar .cm-section{border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd:hover{background:#1c2230}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-hd .cm-arrow{transition:transform .2s;color:#8b949e;font-size:11px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section.open .cm-hd .cm-arrow{transform:rotate(90deg)}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section .cm-bd{padding:8px 12px;font-size:12px;display:none}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-section.open .cm-bd{display:block}'
+      + R + ' .cm-section{border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117}'
+      + R + ' .cm-section .cm-hd{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3}'
+      + R + ' .cm-section .cm-hd:hover{background:#1c2230}'
+      + R + ' .cm-section .cm-hd .cm-hd-txt{flex:1}'
+      + R + ' .cm-section .cm-hd .cm-cardProgress{color:#8b949e;font-size:11px;font-weight:400}'
+      + R + ' .cm-section .cm-hd .cm-arrow{color:#8b949e;font-size:11px;transition:transform .2s}'
+      + R + ' .cm-section.open .cm-hd .cm-arrow{transform:rotate(90deg)}'
+      + R + ' .cm-section .cm-bd{padding:8px 12px;font-size:12px;display:none}'
+      + R + ' .cm-section.open .cm-bd{display:block}'
       // 字段列表
-      + '#' + SCRIPT_ID + '-toolbar .cm-field{display:flex;justify-content:space-between;align-items:center;padding:4px 0}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-nm{color:#c9d1d9}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-ok{color:#3fb950;font-weight:700}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-field .cm-no{color:#484f58}'
+      + R + ' .cm-field{display:flex;justify-content:space-between;align-items:center;padding:4px 0}'
+      + R + ' .cm-field .cm-nm{color:#c9d1d9}'
+      + R + ' .cm-field .cm-ok{color:#3fb950;font-weight:700}'
+      + R + ' .cm-field .cm-no{color:#484f58}'
       // 预设分组
-      + '#' + SCRIPT_ID + '-toolbar .cm-group{color:#8b949e;font-size:11px;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-group:first-child{margin-top:0}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;gap:8px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item:last-child{border-bottom:none}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-preset-item .cm-nm{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-toggle{position:relative;width:32px;height:18px;background:#30363d;border-radius:9px;cursor:pointer;transition:background .2s;flex-shrink:0}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-toggle.on{background:#3fb950}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-toggle.on::after{transform:translateX(14px)}'
+      + R + ' .cm-group{color:#8b949e;font-size:11px;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}'
+      + R + ' .cm-group:first-child{margin-top:0}'
+      + R + ' .cm-preset-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;gap:8px}'
+      + R + ' .cm-preset-item:last-child{border-bottom:none}'
+      + R + ' .cm-preset-item .cm-nm{color:#c9d1d9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+      + R + ' .preset-toggle{position:relative;width:32px;height:18px;background:#30363d;border-radius:9px;cursor:pointer;transition:background .2s;flex-shrink:0}'
+      + R + ' .preset-toggle.on{background:#3fb950}'
+      + R + ' .preset-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}'
+      + R + ' .preset-toggle.on::after{transform:translateX(14px)}'
       // 操作按钮
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button{padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;transition:background .15s,transform .1s}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button:hover{background:#30363d}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button:active{transform:scale(.97)}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.danger{background:#da3633;color:#fff}'
-      + '#' + SCRIPT_ID + '-toolbar .cm-actions button.danger:hover{background:#f85149}'
+      + R + ' .cm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}'
+      + R + ' .cm-actions button{padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;transition:background .15s,transform .1s}'
+      + R + ' .cm-actions button:hover{background:#30363d}'
+      + R + ' .cm-actions button:active{transform:scale(.97)}'
+      + R + ' .cm-actions button.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff}'
+      + R + ' .cm-actions button.danger{background:#da3633;color:#fff}'
+      + R + ' .cm-actions button.danger:hover{background:#f85149}'
       // 空状态提示
-      + '#' + SCRIPT_ID + '-toolbar .cm-empty{color:#6e7681;font-size:12px;padding:8px 0;text-align:center;line-height:1.6}'
+      + R + ' .cm-empty{color:#6e7681;font-size:12px;padding:8px 0;text-align:center;line-height:1.6}'
+      + R + '.cm-dragging{transition:none!important}'
+      + '@media(max-width:480px){' + R + '{width:min(360px,calc(100vw - 24px))!important}' + R + '.mini{width:52px!important;height:52px!important}}'
       ;
     var st = doc.createElement('style');
     st.id = styleId;
@@ -2880,37 +2928,34 @@
   }
 
   function renderPanel() {
-    if (!_toolbar || !_toolbar.doc) return;
-    var d = _toolbar.doc;
+    if (!_toolbar || !_toolbar.panel) return;
+    var p = _toolbar.panel;
     try {
       var charName = fetchCurrentCharName();
       var completion = calcCompletion();
 
-      // 更新状态条
-      var cn = d.getElementById('charName');
+      // 更新状态条（作用域内查找，避免与 ST 自身元素冲突）
+      var cn = p.querySelector('#cm-charName');
       if (cn) cn.textContent = charName || '-';
-      var mc = d.getElementById('msgCount');
+      var mc = p.querySelector('#cm-msgCount');
       if (mc) mc.textContent = String(_chatMsgCount || 0);
-      var cl = d.getElementById('completionLabel');
+      var cl = p.querySelector('#cm-completion');
       if (cl) cl.textContent = Math.round(completion.pct) + '%';
-      var pf = d.getElementById('progressFill');
+      var pf = p.querySelector('#cm-progressFill');
       if (pf) pf.style.width = Math.round(completion.pct) + '%';
 
       // 更新角色卡字段
-      var cf = d.getElementById('cardFields');
+      var cf = p.querySelector('#cm-cardFields');
       if (cf) {
-        var cardHtml = renderCardPreviewHtml();
-        cf.innerHTML = cardHtml;
-        var ct = d.getElementById('cardProgressText');
-        if (ct) ct.textContent = completion.done + '/' + completion.total;
+        cf.innerHTML = renderCardPreviewHtml();
+        var cp = p.querySelector('.cm-cardProgress');
+        if (cp) cp.textContent = completion.done + '/' + completion.total;
       }
 
       // 更新预设开关
-      var ps = d.getElementById('presets');
+      var ps = p.querySelector('#cm-presets');
       if (ps) {
-        var presetHtml = renderPresetHtml();
-        ps.innerHTML = presetHtml;
-        // 绑定开关事件（使用 .preset-toggle 类）
+        ps.innerHTML = renderPresetHtml();
         ps.querySelectorAll('.preset-toggle').forEach(function(item) {
           item.addEventListener('click', function() {
             var name = item.getAttribute('data-name');
@@ -2922,63 +2967,100 @@
         });
       }
 
+      // 同步按钮状态
+      var syncBtn = p.querySelector('[data-act="sync"]');
+      if (syncBtn) {
+        syncBtn.classList.toggle('on', _autoSync);
+        syncBtn.classList.toggle('off', !_autoSync);
+        syncBtn.textContent = _autoSync ? '同步中' : '已暂停';
+      }
+
       // 更新徽标
       updateBadge();
-      updateDot();
     } catch (e) {
       console.error('[时之写卡器] renderPanel 失败:', e);
     }
   }
 
-  function wirePanelEvents() {
-    if (!_toolbar) return;
-    var p = _toolbar.panel;
-    var collapseBtn = p.querySelector('[data-act="collapse"]');
-    if (collapseBtn) collapseBtn.onclick = function () { setExpanded(false); };
-    var closeBtn = p.querySelector('[data-act="close"]');
-    if (closeBtn) closeBtn.onclick = function () { setExpanded(false); showToast('工具条已收起，聊天仍会自动同步'); };
+  // 根据持久化设置应用位置（展开/折叠各自记忆）
+  function applyPosition(el) {
+    var expanded = !el.classList.contains('mini');
+    var savedLeft = expanded ? _settings.left : _settings.miniLeft;
+    var savedTop = expanded ? _settings.top : _settings.miniTop;
+    var vp = _viewport();
+    var w = el.offsetWidth || (expanded ? 360 : 56);
+    var h = el.offsetHeight || (expanded ? 420 : 56);
+    var left = (savedLeft != null) ? savedLeft : (vp.width - w - 24);
+    var top = (savedTop != null) ? savedTop : (vp.height - h - 24);
+    left = Math.max(8, Math.min(vp.width - w - 8, left));
+    top = Math.max(8, Math.min(vp.height - h - 8, top));
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  }
+  // 保存当前位置到设置
+  function savePosition(el) {
+    try {
+      var expanded = !el.classList.contains('mini');
+      var rect = el.getBoundingClientRect();
+      if (expanded) { _settings.left = rect.left; _settings.top = rect.top; }
+      else { _settings.miniLeft = rect.left; _settings.miniTop = rect.top; }
+      _settings.expanded = expanded;
+      saveSettings();
+    } catch (_) {}
+  }
 
-    var heads = p.querySelectorAll('.cm-section > .cm-hd');
+  // 统一绑定工具条事件（mini 轻点展开由 makeDraggable 的 pointerup 处理，避免拖拽误触）
+  function bindToolbarEvents(root) {
+    var minBtn = root.querySelector('.cm-min');
+    if (minBtn) minBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setExpanded(false);
+    });
+    var closeBtn = root.querySelector('.cm-close');
+    if (closeBtn) closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setExpanded(false);
+      showToast('工具条已收起，聊天仍会自动同步');
+    });
+
+    var heads = root.querySelectorAll('.cm-section > .cm-hd');
     Array.prototype.forEach.call(heads, function (h) {
-      h.onclick = function () { h.parentElement.classList.toggle('open'); };
+      h.addEventListener('click', function () { h.parentElement.classList.toggle('open'); });
     });
 
-    var toggles = p.querySelectorAll('.cm-toggle');
-    Array.prototype.forEach.call(toggles, function (t) {
-      t.onclick = function () {
-        var name = t.getAttribute('data-name');
-        if (!name) return;
-        showToast('切换中...', 'info');
-        togglePresetPrompt(name).then(function () { refreshPanel(); }).catch(function(){ refreshPanel(); });
-      };
+    root.querySelectorAll('[data-act]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        handleAction(btn.getAttribute('data-act'));
+      });
     });
+  }
 
-    var exportBtn = p.querySelector('[data-act="export"]');
-    if (exportBtn) exportBtn.onclick = exportCard;
-    var importBtn = p.querySelector('[data-act="import"]');
-    if (importBtn) importBtn.onclick = triggerImport;
-    var clearBtn = p.querySelector('[data-act="clear"]');
-    if (clearBtn) clearBtn.onclick = function () {
-      if (confirm('确认清空当前角色卡数据？')) {
-        initCardData();
+  function handleAction(act) {
+    switch (act) {
+      case 'export': exportCard(); break;
+      case 'import': triggerImport(); break;
+      case 'refresh':
+        autoExtractFromChat(true);
         refreshPanel();
-        updateBadge();
-        showToast('数据已清空');
-      }
-    };
-    var refreshBtn = p.querySelector('[data-act="refresh"]');
-    if (refreshBtn) refreshBtn.onclick = function () {
-      autoExtractFromChat(true);
-      refreshPanel();
-      showToast('已刷新');
-    };
-    var syncBtn = p.querySelector('[data-act="sync"]');
-    if (syncBtn) syncBtn.onclick = function () {
-      _autoSync = !_autoSync;
-      refreshPanel();
-      updateDot();
-      showToast('自动同步已' + (_autoSync ? '开启' : '暂停'));
-    };
+        showToast('已刷新');
+        break;
+      case 'clear':
+        if (confirm('确认清空当前角色卡数据？')) {
+          initCardData();
+          refreshPanel();
+          updateBadge();
+          showToast('数据已清空');
+        }
+        break;
+      case 'sync':
+        _autoSync = !_autoSync;
+        refreshPanel();
+        showToast('自动同步已' + (_autoSync ? '开启' : '暂停'));
+        break;
+    }
   }
 
   function refreshPanel() {
@@ -2990,77 +3072,102 @@
     if (!_toolbar || !_toolbar.badge) return;
     var c = calcCompletion();
     var pct = Math.round(c.pct);
-    _toolbar.badge.textContent = pct + '%';
-    if (pct === 0) _toolbar.badge.classList.add('zero');
-    else _toolbar.badge.classList.remove('zero');
-  }
-
-  function updateDot() {
-    if (!_toolbar || !_toolbar.dot) return;
-    if (_autoSync) _toolbar.dot.classList.remove('off');
-    else _toolbar.dot.classList.add('off');
+    var applyTo = function (el) {
+      if (!el) return;
+      el.textContent = pct + '%';
+      if (pct === 0) el.classList.add('zero');
+      else el.classList.remove('zero');
+    };
+    applyTo(_toolbar.badge);
+    applyTo(_toolbar.miniBadge);
   }
 
   function removeToolbar() {
     if (_toolbar) {
       try { if (_toolbar.container) _toolbar.container.remove(); } catch (_) {}
-      try { if (_toolbar.panel) _toolbar.panel.remove(); } catch (_) {}
       _toolbar = null;
     }
     _expanded = false;
   }
 
-  // setExpanded：纯 DOM 方式
+  // 展开/折叠：切换 .mini 类，分别记忆两种形态的位置
   function setExpanded(v) {
-    _expanded = !!v;
+    var want = !!v;
     if (!_toolbar || !_toolbar.panel) {
-      if (v && !_toolbar) createToolbar();
+      _expanded = want;
+      if (want && !_toolbar) createToolbar();
       return;
     }
-    if (_expanded) {
-      _toolbar.panel.style.display = 'flex';
-      renderPanel();
+    var root = _toolbar.panel;
+    savePosition(root);          // 先保存当前形态位置
+    _expanded = want;
+    _settings.expanded = want;
+    if (want) {
+      root.classList.remove('mini');
     } else {
-      _toolbar.panel.style.display = 'none';
+      root.classList.add('mini');
     }
+    applyPosition(root);         // 应用目标形态的位置
+    if (want) renderPanel();
+    saveSettings();
   }
 
-  function makeDraggable() {
-    if (!_toolbar) return;
-    var doc = parentDoc();
-    var title = _toolbar.panel.querySelector('.cm-title');
-    if (!title) return;
-    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  // 拖拽：参考 Selene Music 的 pointer events 实现，含视口边界约束
+  // 折叠态从 .cm-mini-shell 拖，展开态从 .cm-head 拖；轻点 mini（未移动）则展开
+  function makeDraggable(root) {
+    var doc = _toolbar.doc;
+    var drag = null;
+
     var onDown = function (e) {
-      var tgt = e.target;
-      var isButton = !!tgt && (tgt.tagName === 'BUTTON' || (typeof tgt.closest === 'function' && !!tgt.closest('button')));
-      if (isButton) return;
-      dragging = true;
-      var t = e.touches ? e.touches[0] : e;
-      sx = t.clientX; sy = t.clientY;
-      var rect = _toolbar.panel.getBoundingClientRect();
-      ox = rect.left; oy = rect.top;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      var target = e.target;
+      var isMini = root.classList.contains('mini');
+      var inShell = target && typeof target.closest === 'function' && target.closest('.cm-mini-shell');
+      var inHead = target && typeof target.closest === 'function' && target.closest('.cm-head');
+      if (isMini) {
+        if (!inShell) return;
+      } else {
+        if (!inHead) return;
+        if (target.closest('button')) return;  // 让 head 内按钮正常工作
+      }
+      var rect = root.getBoundingClientRect();
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, left: rect.left, top: rect.top, moved: false, wasMini: isMini };
+      try { if (root.setPointerCapture) root.setPointerCapture(e.pointerId); } catch (_) {}
+      root.classList.add('cm-dragging');
       e.preventDefault();
     };
     var onMove = function (e) {
-      if (!dragging) return;
-      var t = e.touches ? e.touches[0] : e;
-      var dx = t.clientX - sx, dy = t.clientY - sy;
-      _toolbar.panel.style.left = (ox + dx) + 'px';
-      _toolbar.panel.style.top = (oy + dy) + 'px';
-      _toolbar.panel.style.right = 'auto';
-      _toolbar.panel.style.bottom = 'auto';
+      if (!drag || e.pointerId !== drag.id) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+      var vp = _viewport();
+      var w = root.offsetWidth, h = root.offsetHeight;
+      var left = Math.max(6, Math.min(vp.width - w - 6, drag.left + dx));
+      var top = Math.max(6, Math.min(vp.height - h - 6, drag.top + dy));
+      root.style.left = left + 'px';
+      root.style.top = top + 'px';
+      root.style.right = 'auto';
+      root.style.bottom = 'auto';
+      e.preventDefault();
     };
-    var onUp = function () { dragging = false; };
-    title.addEventListener('mousedown', onDown);
-    doc.addEventListener('mousemove', onMove);
-    doc.addEventListener('mouseup', onUp);
-    title.addEventListener('touchstart', onDown, { passive: false });
-    doc.addEventListener('touchmove', onMove, { passive: false });
-    doc.addEventListener('touchend', onUp);
+    var onUp = function (e) {
+      if (!drag) return;
+      var moved = drag.moved;
+      var wasMini = drag.wasMini;
+      try { if (root.releasePointerCapture) root.releasePointerCapture(drag.id); } catch (_) {}
+      root.classList.remove('cm-dragging');
+      drag = null;
+      if (!moved && wasMini) setExpanded(true);  // 轻点 mini 展开
+      else savePosition(root);
+    };
+
+    root.addEventListener('pointerdown', onDown);
+    doc.addEventListener('pointermove', onMove);
+    doc.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointercancel', onUp);
   }
 
-  // 创建悬浮工具条（纯 DOM 方式，不使用 iframe，避免跨域/CSP 问题）
+  // 创建悬浮工具条：单根容器，.mini 折叠态 + 展开态共用一套 #ID 作用域样式
   function createToolbar() {
     if (_toolbar) {
       try { setExpanded(true); } catch(e) {}
@@ -3069,117 +3176,73 @@
     var doc = parentDoc();
     if (!doc || !doc.body) {
       console.error('[时之写卡器] parent.document.body 不可用');
-      // 立即重试
       setTimeout(createToolbar, 500);
       return;
     }
 
     try {
-      // 移除旧的
+      injectStyles();
+      // 移除旧元素（兼容旧版的 -toolbar / -panel）
       var oldToolbar = doc.getElementById(SCRIPT_ID + '-toolbar');
       if (oldToolbar) oldToolbar.remove();
       var oldPanel = doc.getElementById(SCRIPT_ID + '-panel');
       if (oldPanel) oldPanel.remove();
 
-      // ===== 创建 FAB 按钮（折叠态：右下角圆形按钮，使用内联样式）=====
-      var fab = doc.createElement('div');
-      fab.id = SCRIPT_ID + '-toolbar';
-      fab.style.cssText = 'position:fixed !important;bottom:24px !important;right:24px !important;z-index:2147483647 !important;';
-      fab.innerHTML =
-        '<button id="fabBtn" style="position:relative;width:52px;height:52px;border:none;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,.5);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;transition:transform .2s;padding:0;">'
-        + '<span style="line-height:1;">⚡</span>'
-        + '<span id="badge" style="position:absolute;bottom:-4px;right:-4px;background:#3fb950;color:#fff;font-size:10px;font-weight:bold;padding:2px 5px;border-radius:10px;border:2px solid #0d1117;">0%</span>'
-        + '</button>';
-
-      doc.body.appendChild(fab);
-
-      // ===== 创建面板（展开态，使用内联样式）=====
-      var panel = doc.createElement('div');
-      panel.id = SCRIPT_ID + '-panel';
-      panel.style.cssText = 'position:fixed !important;bottom:84px !important;right:24px !important;width:360px !important;max-height:580px !important;background:#0d1117 !important;color:#e6edf3 !important;border:1px solid #30363d !important;border-radius:14px !important;box-shadow:0 16px 48px rgba(0,0,0,.6) !important;display:none !important;flex-direction:column !important;overflow:hidden !important;z-index:2147483647 !important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;';
-
-      panel.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:linear-gradient(135deg,#7c3aed,#ec4899);cursor:move;user-select:none;font-weight:600;font-size:14px;color:#fff;">'
-        + '  <span>⚡ 时之写卡器</span>'
-        + '  <div style="display:flex;gap:6px;">'
-        + '    <button id="collapseBtn" style="width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;">—</button>'
-        + '    <button id="closeBtn" style="width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff;font-size:16px;line-height:1;">✕</button>'
+      var root = doc.createElement('section');
+      root.id = SCRIPT_ID + '-toolbar';
+      root.className = _settings.expanded ? '' : 'mini';
+      root.innerHTML =
+        '<header class="cm-head" title="拖动移动">'
+        + '<span class="cm-title">⚡ 时之写卡器</span>'
+        + '<span class="cm-badge zero">0%</span>'
+        + '<div class="cm-head-btns">'
+        + '<button class="cm-min" title="收起">—</button>'
+        + '<button class="cm-close" title="关闭">×</button>'
+        + '</div>'
+        + '</header>'
+        + '<div class="cm-body">'
+        + '  <div class="cm-status">'
+        + '    <span class="cm-chip">👤 <b id="cm-charName">-</b></span>'
+        + '    <span class="cm-chip">💬 <b id="cm-msgCount">0</b></span>'
+        + '    <span class="cm-chip">📊 <b id="cm-completion">0%</b></span>'
+        + '    <button class="cm-sync-btn on" data-act="sync">同步中</button>'
+        + '  </div>'
+        + '  <div class="cm-progress"><div id="cm-progressFill" style="width:0%"></div></div>'
+        + '  <div class="cm-section open">'
+        + '    <div class="cm-hd"><span class="cm-hd-txt">📋 角色卡</span><span class="cm-cardProgress">0/9</span><i class="cm-arrow">▶</i></div>'
+        + '    <div id="cm-cardFields" class="cm-bd"></div>'
+        + '  </div>'
+        + '  <div class="cm-section">'
+        + '    <div class="cm-hd"><span class="cm-hd-txt">⚙️ 预设开关</span><i class="cm-arrow">▶</i></div>'
+        + '    <div id="cm-presets" class="cm-bd"></div>'
+        + '  </div>'
+        + '  <div class="cm-actions">'
+        + '    <button class="primary" data-act="export">📥 导出</button>'
+        + '    <button data-act="import">📤 导入</button>'
+        + '    <button data-act="refresh">🔄 刷新</button>'
+        + '    <button class="danger" data-act="clear">🗑️ 清空</button>'
         + '  </div>'
         + '</div>'
-        + '<div style="overflow-y:auto;padding:12px 14px;flex:1;">'
-        + '  <div style="display:flex;align-items:center;gap:8px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">'
-        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">👤 <b id="charName" style="color:#58a6ff;font-weight:600;">-</b></span>'
-        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">💬 <b id="msgCount" style="color:#58a6ff;font-weight:600;">0</b></span>'
-        + '    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#21262d;color:#c9d1d9;">📊 <b id="completionLabel" style="color:#58a6ff;font-weight:600;">0%</b></span>'
-        + '  </div>'
-        + '  <div style="height:5px;background:#21262d;border-radius:3px;overflow:hidden;margin-bottom:10px;">'
-        + '    <div id="progressFill" style="height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);transition:width .35s ease;width:0%;"></div>'
-        + '  </div>'
-        + '  <div style="border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117;">'
-        + '    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3;" data-target="cardFields">📋 角色卡 <span style="color:#8b949e;font-size:11px;">▼</span></div>'
-        + '    <div id="cardFields" style="padding:8px 12px;font-size:12px;display:block;"></div>'
-        + '  </div>'
-        + '  <div style="border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0d1117;">'
-        + '    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#161b22;cursor:pointer;font-size:13px;font-weight:600;user-select:none;color:#e6edf3;" data-target="presets">⚙️ 预设开关 <span style="color:#8b949e;font-size:11px;">▶</span></div>'
-        + '    <div id="presets" style="padding:8px 12px;font-size:12px;display:none;"></div>'
-        + '  </div>'
-        + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">'
-        + '    <button id="exportBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;font-size:12px;font-weight:600;">📥 导出</button>'
-        + '    <button id="importBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;">📤 导入</button>'
-        + '    <button id="refreshBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#21262d;color:#c9d1d9;font-size:12px;font-weight:600;">🔄 刷新</button>'
-        + '    <button id="clearBtn" style="padding:9px;border:none;border-radius:8px;cursor:pointer;background:#da3633;color:#fff;font-size:12px;font-weight:600;">🗑️ 清空</button>'
-        + '  </div>'
-        + '</div>';
+        + '<button class="cm-mini-shell" title="点击展开" aria-label="展开工具条">⚡</button>'
+        + '<span class="cm-mini-badge zero">0%</span>';
 
-      doc.body.appendChild(panel);
-
-      // 保存引用
-      var fabBtn = fab.querySelector('#fabBtn');
-      var badge = fab.querySelector('#badge');
+      doc.body.appendChild(root);
 
       _toolbar = {
-        container: fab,
-        panel: panel,
-        fab: fabBtn,
-        badge: badge,
-        dot: null,
+        container: root,
+        panel: root,
+        badge: root.querySelector('.cm-badge'),
+        miniBadge: root.querySelector('.cm-mini-badge'),
         doc: doc
       };
 
-      // ===== 事件绑定 =====
-      fabBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        setExpanded(!_expanded);
-      });
+      // 应用记忆的位置
+      applyPosition(root);
+      // 绑定事件 + 拖拽
+      bindToolbarEvents(root);
+      makeDraggable(root);
 
-      panel.querySelector('#closeBtn').addEventListener('click', function () {
-        removeToolbar();
-      });
-
-      panel.querySelector('#collapseBtn').addEventListener('click', function () {
-        setExpanded(false);
-      });
-
-      // 区段折叠（使用 data-target 属性）
-      panel.querySelectorAll('[data-target]').forEach(function(el) {
-        el.addEventListener('click', function() {
-          var targetId = el.getAttribute('data-target');
-          var target = panel.querySelector('#' + targetId);
-          if (target) {
-            target.style.display = target.style.display === 'none' ? 'block' : 'none';
-          }
-        });
-      });
-
-      // 操作按钮
-      panel.querySelector('#exportBtn').addEventListener('click', exportCard);
-      panel.querySelector('#importBtn').addEventListener('click', triggerImport);
-      panel.querySelector('#refreshBtn').addEventListener('click', function () { autoExtractFromChat(true); });
-      panel.querySelector('#clearBtn').addEventListener('click', clearCardData);
-
-      makeDraggable();
-
-      console.log('[时之写卡器] ✅ 工具条创建成功（内联样式模式）');
+      console.log('[时之写卡器] ✅ 悬浮工具条已创建');
 
       // 启动监听
       if (!_listenersRegistered) {
@@ -3199,7 +3262,6 @@
 
     } catch (e) {
       console.error('[时之写卡器] createToolbar 异常:', e);
-      // 兜底：显示错误信息
       try {
         var errDiv = doc.createElement('div');
         errDiv.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;padding:12px 20px;background:#da3633;color:#fff;border-radius:8px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
@@ -3409,6 +3471,7 @@
 
   // ===== 启动策略 =====
   console.log('[时之写卡器] 📦 启动中...');
+  loadSettings();   // 读取悬浮工具条位置/展开状态
 
   // 先尝试注册 ST 按钮
   var retryCount = 0;
