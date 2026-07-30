@@ -2633,13 +2633,20 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // 在 ST 沙箱里 window.parent 可能跨域不可访问，需健壮兜底
   function parentDoc() {
-    try { return (window.parent && window.parent.document) ? window.parent.document : document; }
-    catch (_) { return document; }
+    try {
+      if (window.parent && window.parent.document && window.parent.document.body) return window.parent.document;
+    } catch (_) {}
+    try {
+      if (window.top && window.top.document && window.top.document.body) return window.top.document;
+    } catch (_) {}
+    return document;
   }
 
   function parentWin(name) {
     try { if (window.parent && window.parent[name]) return window.parent[name]; } catch (_) {}
+    try { if (window.top && window.top[name]) return window.top[name]; } catch (_) {}
     return window[name];
   }
 
@@ -3158,13 +3165,17 @@
     mergePartial(src, _cardData);
   }
 
-  // ===== 初始化：自动创建悬浮工具条 + 注册 ST 扩展按钮（点击=展开/收起） =====
+  // ===== 初始化：注册 ST 扩展按钮（点击展开/收起）+ 自动挂载兜底 =====
   function registerSTButton() {
     try {
       var evtOn = typeof eventOn === 'function' ? eventOn : _g('eventOn');
       var getBtnEvt = typeof getButtonEvent === 'function' ? getButtonEvent : _g('getButtonEvent');
       if (evtOn && getBtnEvt) {
-        evtOn(getBtnEvt(BUTTON_NAME), function () { setExpanded(!_expanded); });
+        evtOn(getBtnEvt(BUTTON_NAME), function () {
+          // 点击 ST 扩展按钮 → 创建并展开工具条
+          if (!_toolbar) createToolbar();
+          else setExpanded(!_expanded);
+        });
         return true;
       }
     } catch (e) {}
@@ -3177,16 +3188,46 @@
     try {
       var doc = parentDoc();
       if (!doc || !doc.body) {
-        if (_initRetry < 30) { _initRetry++; setTimeout(autoMount, 300); }
+        if (_initRetry < 60) { _initRetry++; setTimeout(autoMount, 300); }
         return;
       }
       // 避免重复挂载
       if (_toolbar) return;
       createToolbar();
-      registerSTButton();
+      // 挂载成功后，尝试用 ST 的 APP_READY 事件补一次（防止 ST 晚初始化）
+      try {
+        var evtOn = _g('eventOn');
+        var te = (typeof tavern_events !== 'undefined') ? tavern_events : (window.parent && window.parent.tavern_events);
+        if (evtOn && te && te.APP_READY) {
+          evtOn(te.APP_READY, function () { if (!_toolbar) createToolbar(); });
+        }
+      } catch (_) {}
     } catch (e) {
-      if (_initRetry < 30) { _initRetry++; setTimeout(autoMount, 300); }
+      console.error('[时之写卡器] autoMount 失败:', e);
+      if (_initRetry < 60) { _initRetry++; setTimeout(autoMount, 500); }
     }
+  }
+
+  // 独立 fallback 悬浮按钮（最后保险：万一工具条挂不上，至少有个按钮能点开）
+  function addFallbackButton() {
+    try {
+      if (_toolbar) return; // 工具条已挂载则不需要
+      var pDoc = parentDoc();
+      var old = pDoc.getElementById(SCRIPT_ID + '-fallback');
+      if (old) old.remove();
+      var btn = pDoc.createElement('button');
+      btn.id = SCRIPT_ID + '-fallback';
+      btn.textContent = '⚡ 写卡器';
+      btn.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:999998;padding:10px 18px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:25px;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 4px 15px rgba(124,58,237,.4);transition:transform .2s;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+      btn.onmouseover = function () { btn.style.transform = 'scale(1.05)'; };
+      btn.onmouseout = function () { btn.style.transform = 'scale(1)'; };
+      btn.onclick = function () {
+        if (!_toolbar) createToolbar();
+        else setExpanded(true);
+      };
+      pDoc.body.appendChild(btn);
+      console.log('[时之写卡器] 已挂载 fallback 悬浮按钮');
+    } catch (e) { console.error('[时之写卡器] addFallbackButton 失败:', e); }
   }
 
   window.addEventListener('pagehide', function () {
@@ -3194,10 +3235,31 @@
     removeToolbar();
   });
 
-  // 启动：DOM 就绪后自动挂载悬浮工具条（无需点击任何按钮）
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoMount);
-  } else {
-    autoMount();
+  // 启动策略：
+  // 1. 立即注册 ST 扩展按钮（点击触发，最可靠）
+  // 2. 简单重试注册（等 ST 初始化完成）
+  // 3. 同时延迟自动挂载兜底（无需点击即可显示）
+  // 4. 最后兜底：如果自动挂载失败，加独立 fallback 按钮
+  var retryCount = 0;
+  function tryRegisterButton() {
+    if (registerSTButton()) { return; }
+    if (retryCount < 20) { retryCount++; setTimeout(tryRegisterButton, 500); }
   }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      tryRegisterButton();
+      setTimeout(autoMount, 1000);
+      // 6 秒后若工具条还没挂上，加 fallback 按钮
+      setTimeout(function () { if (!_toolbar) addFallbackButton(); }, 6000);
+    });
+  } else {
+    tryRegisterButton();
+    setTimeout(autoMount, 1000);
+    setTimeout(function () { if (!_toolbar) addFallbackButton(); }, 6000);
+  }
+  // 多重自动挂载兜底
+  setTimeout(autoMount, 2000);
+  setTimeout(autoMount, 4000);
+  window.addEventListener('load', autoMount);
 })();
