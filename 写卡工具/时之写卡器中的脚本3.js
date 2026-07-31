@@ -2524,6 +2524,14 @@
   function mergeJsonIntoCardData(patch) {
     if (!patch || typeof patch !== 'object') return 0;
     if (patch._nochange) return 0;
+    // 兼容 chara_card_v3 标准格式：如果检测到 {spec, data: {...}}，把 data 中的字段提升到 patch 顶层
+    // 这样AI按p07_要求输出完整角色卡格式时，脚本能正确捕捉到 name/description/character_book 等字段
+    if (patch.data && typeof patch.data === 'object' && !Array.isArray(patch.data)) {
+      var d = patch.data;
+      Object.keys(d).forEach(function(k) {
+        if (patch[k] === undefined && d.hasOwnProperty(k)) patch[k] = d[k];
+      });
+    }
     var changed = 0;
     function applyTop(key, val, fieldType) {
       if (val === undefined || val === null) return false;
